@@ -57,7 +57,7 @@ CanCastResult CreatureAI::CanCastSpell(Unit* pTarget, SpellEntry const* pSpell, 
         if (m_creature->HasUnitState(UNIT_STAT_CAN_NOT_REACT_OR_LOST_CONTROL))
             return CAST_FAIL_STATE;
 
-        if (pSpell->PreventionType == SPELL_PREVENTION_TYPE_SILENCE && (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SILENCED) || m_creature->IsSpellProhibited(pSpell)))
+        if (pSpell->PreventionType == SPELL_PREVENTION_TYPE_SILENCE && (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SILENCED) || m_creature->CheckLockout(pSpell->GetSpellSchoolMask())))
             return CAST_FAIL_STATE;
 
         if (pSpell->PreventionType == SPELL_PREVENTION_TYPE_PACIFY && m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED))
@@ -403,9 +403,15 @@ void CreatureAI::SetMeleeAttack(bool enabled)
     if (Unit* pVictim = m_creature->GetVictim())
     { 
         if (enabled)
+        {
+            m_creature->AddUnitState(UNIT_STAT_MELEE_ATTACKING);
             m_creature->SendMeleeAttackStart(pVictim);
+        } 
         else
+        {
+            m_creature->ClearUnitState(UNIT_STAT_MELEE_ATTACKING);
             m_creature->SendMeleeAttackStop(pVictim);
+        }
     }
 }
 
@@ -419,9 +425,15 @@ void CreatureAI::SetCombatMovement(bool enabled)
     if (Unit* pVictim = m_creature->GetVictim())
     {
         if (!enabled && (m_creature->GetMotionMaster()->GetCurrentMovementGeneratorType() == CHASE_MOTION_TYPE))
+        {
+            m_creature->GetMotionMaster()->MovementExpired(false);
             m_creature->GetMotionMaster()->MoveIdle();
+        }
         else if (enabled && (m_creature->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE))
+        {
+            m_creature->GetMotionMaster()->MovementExpired(false);
             m_creature->GetMotionMaster()->MoveChase(pVictim);
+        }  
     }
 }
 

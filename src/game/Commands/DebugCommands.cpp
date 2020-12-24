@@ -2168,6 +2168,23 @@ bool ChatHandler::HandleDebugMoveToCommand(char* args)
     return true;
 }
 
+bool ChatHandler::HandleDebugMoveDistanceCommand(char* args)
+{
+    Player* player = m_session->GetPlayer();
+    Unit* target = GetSelectedUnit();
+    if (!player || !target || player == target)
+    {
+        SendSysMessage(LANG_SELECT_CHAR_OR_CREATURE);
+        return true;
+    }
+
+    float distance = 10.0f;
+    ExtractFloat(&args, distance);
+    target->GetMotionMaster()->MoveDistance(player, distance);
+    PSendSysMessage("%s is moving %g yards away from you.", target->GetName(), distance);
+    return true;
+}
+
 bool ChatHandler::HandleDebugFaceMeCommand(char* args)
 {
     Player* player = m_session->GetPlayer();
@@ -2580,5 +2597,57 @@ bool ChatHandler::HandleMmapLoad(char* args)
     gy = 32 - pl->GetPositionY() / SIZE_OF_GRIDS;
     PSendSysMessage("* Load tile [%u:%u]", gx, gy);
     MMAP::MMapFactory::createOrGetMMapManager()->loadMap(pl->GetMapId(), gx, gy);
+    return true;
+}
+
+bool ChatHandler::HandleDebugUnitBytes1Command(char *args)
+{
+    Unit* target = GetSelectedUnit();
+    if (!target)
+    {
+        SendSysMessage(LANG_SELECT_CHAR_OR_CREATURE);
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    uint32 offset;
+    if (!ExtractUInt32(&args, offset))
+        return false;
+
+    if (offset > 3)
+        return false;
+
+    uint32 value;
+    if (!ExtractUInt32(&args, value))
+        return false;
+
+    target->SetByteValue(UNIT_FIELD_BYTES_1, offset, value);
+
+    return true;
+}
+
+bool ChatHandler::HandleDebugUnitBytes2Command(char *args)
+{
+    Unit* target = GetSelectedUnit();
+    if (!target)
+    {
+        SendSysMessage(LANG_SELECT_CHAR_OR_CREATURE);
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    uint32 offset;
+    if (!ExtractUInt32(&args, offset))
+        return false;
+
+    if (offset > 3)
+        return false;
+
+    uint32 value;
+    if (!ExtractUInt32(&args, value))
+        return false;
+
+    target->SetByteValue(UNIT_FIELD_BYTES_2, offset, value);
+
     return true;
 }

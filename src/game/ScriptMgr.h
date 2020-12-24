@@ -104,7 +104,7 @@ enum eScriptCommand
                                                             // datalong4 = unique_distance
                                                             // dataint = eSummonCreatureFlags
                                                             // dataint2 = script_id
-                                                            // dataint3 = attack_target (see enum Target)
+                                                            // dataint3 = attack_target (see enum ScriptTarget)
                                                             // dataint4 = despawn_type (see enum TempSummonType)
                                                             // x/y/z/o = coordinates
     SCRIPT_COMMAND_OPEN_DOOR                = 11,           // source = GameObject (from datalong, provided source or target)
@@ -255,7 +255,7 @@ enum eScriptCommand
                                                             // datalong2 = start_point
                                                             // datalong3 = initial_delay
                                                             // datalong4 = (bool) repeat
-                                                            // dataint = path_id
+                                                            // dataint = overwrite_guid
                                                             // dataint2 = overwrite_entry
     SCRIPT_COMMAND_START_MAP_EVENT          = 61,           // source = Map
                                                             // datalong = event_id
@@ -338,6 +338,10 @@ enum eScriptCommand
                                                             // target = WorldObject (from provided source or target)
     SCRIPT_COMMAND_SET_GOSSIP_MENU          = 84,           // source = Creature
                                                             // datalong = gossip_menu_id
+    SCRIPT_COMMAND_SEND_SCRIPT_EVENT        = 85,           // source = Creature
+                                                            // target = WorldObject
+                                                            // datalong = event_id
+                                                            // datalong2 = event_data
     SCRIPT_COMMAND_MAX,
 
     SCRIPT_COMMAND_DISABLED                 = 9999          // Script action was disabled during loading.
@@ -870,7 +874,7 @@ struct ScriptInfo
             uint32 initialDelay;                            // datalong3
             uint32 canRepeat;                               // datalong4
             uint32 unused;                                  // data_flags
-            int32  pathId;                                  // dataint
+            int32  overwriteGuid;                           // dataint
             int32  overwriteEntry;                          // dataint2
         } startWaypoints;
         
@@ -1019,6 +1023,12 @@ struct ScriptInfo
             uint32 gossipMenuId;                            // datalong
         } setGossipMenu;
 
+        struct                                              // SCRIPT_COMMAND_SEND_SCRIPT_EVENT (85)
+        {
+            uint32 eventId;                                 // datalong
+            uint32 eventData;                               // datalong2
+        } sendScriptEvent;
+
         struct
         {
             uint32 data[9];
@@ -1077,6 +1087,7 @@ extern ScriptMapMap sSpellScripts;
 extern ScriptMapMap sCreatureSpellScripts;
 extern ScriptMapMap sGameObjectScripts;
 extern ScriptMapMap sEventScripts;
+extern ScriptMapMap sGenericScripts;
 extern ScriptMapMap sGossipScripts;
 extern ScriptMapMap sCreatureMovementScripts;
 extern ScriptMapMap sCreatureAIScripts;
@@ -1095,17 +1106,18 @@ extern ScriptMapMap sCreatureAIScripts;
 
 enum CastFlags
 {
-    CF_INTERRUPT_PREVIOUS     = 0x01,                     //Interrupt any spell casting
-    CF_TRIGGERED              = 0x02,                     //Triggered (this makes spell cost zero mana and have no cast time)
-    CF_FORCE_CAST             = 0x04,                     //Forces cast even if creature is out of mana or out of range
-    CF_MAIN_RANGED_SPELL      = 0x08,                     //To be used by ranged mobs only. Creature will not chase target until cast fails.
-    CF_TARGET_UNREACHABLE     = 0x10,                     //Will only use the ability if creature cannot currently get to target
-    CF_AURA_NOT_PRESENT       = 0x20,                     //Only casts the spell if the target does not have an aura from the spell
-    CF_ONLY_IN_MELEE          = 0x40,                     //Only casts if the creature is in melee range of the target
-    CF_NOT_IN_MELEE           = 0x80,                     //Only casts if the creature is not in melee range of the target
+    CF_INTERRUPT_PREVIOUS     = 0x001,                     // Interrupt any spell casting
+    CF_TRIGGERED              = 0x002,                     // Triggered (this makes spell cost zero mana and have no cast time)
+    CF_FORCE_CAST             = 0x004,                     // Bypasses extra checks in Creature::TryToCast
+    CF_MAIN_RANGED_SPELL      = 0x008,                     // To be used by ranged mobs only. Creature will not chase target until cast fails.
+    CF_TARGET_UNREACHABLE     = 0x010,                     // Will only use the ability if creature cannot currently get to target
+    CF_AURA_NOT_PRESENT       = 0x020,                     // Only casts the spell if the target does not have an aura from the spell
+    CF_ONLY_IN_MELEE          = 0x040,                     // Only casts if the creature is in melee range of the target
+    CF_NOT_IN_MELEE           = 0x080,                     // Only casts if the creature is not in melee range of the target
+    CF_TARGET_CASTING         = 0x100,                     // Only casts if the target is currently casting a spell
 };
 
-#define ALL_CAST_FLAGS (CF_INTERRUPT_PREVIOUS | CF_TRIGGERED | CF_FORCE_CAST | CF_MAIN_RANGED_SPELL | CF_TARGET_UNREACHABLE | CF_AURA_NOT_PRESENT)
+#define ALL_CAST_FLAGS (CF_INTERRUPT_PREVIOUS | CF_TRIGGERED | CF_FORCE_CAST | CF_MAIN_RANGED_SPELL | CF_TARGET_UNREACHABLE | CF_AURA_NOT_PRESENT | CF_ONLY_IN_MELEE | CF_NOT_IN_MELEE | CF_TARGET_CASTING)
 
 // Values used in target_type column
 enum ScriptTarget
@@ -1296,6 +1308,7 @@ class ScriptMgr
         void LoadEventScripts();
         void LoadSpellScripts();
         void LoadCreatureSpellScripts();
+        void LoadGenericScripts();
         void LoadGossipScripts();
         void LoadCreatureMovementScripts();
         void LoadCreatureEventAIScripts();
@@ -1382,6 +1395,7 @@ class ScriptMgr
 
     private:
         void CollectPossibleEventIds(std::set<uint32>& eventIds);
+        void CollectPossibleGenericIds(std::set<uint32>& eventIds);
         void LoadScripts(ScriptMapMap& scripts, char const* tablename);
         void CheckScriptTexts(ScriptMapMap const& scripts);
 

@@ -190,11 +190,11 @@ void PetAI::UpdateAI(uint32 const diff)
             if (!spellInfo)
                 continue;
 
-            if (m_creature->GetGlobalCooldownMgr().HasGlobalCooldown(spellInfo))
+            if (m_creature->HasGCD(spellInfo))
                 continue;
 
             // check spell cooldown
-            if (m_creature->HasSpellCooldown(spellInfo->Id))
+            if (!m_creature->IsSpellReady(spellInfo->Id))
                 continue;
 
             if (spellInfo->IsPositiveSpell())
@@ -584,6 +584,10 @@ void PetAI::DoAttack(Unit* target, bool chase)
         // Play sound to let the player know the pet is attacking something it picked on its own
         if (m_creature->HasReactState(REACT_AGGRESSIVE) && !m_creature->GetCharmInfo()->IsCommandAttack())
             m_creature->SendPetAIReaction();
+
+        // Imp pets have a small chance to say one of these texts on aggro.
+        if ((m_creature->GetEntry() == 416 || m_creature->GetEntry() == 12922) && !m_creature->IsInCombat() && roll_chance_u(5))
+            DoScriptText(PickRandomValue(746, 747, 749, 750, 751, 752, 753, 754), m_creature, target);
 
         if (chase)
         {

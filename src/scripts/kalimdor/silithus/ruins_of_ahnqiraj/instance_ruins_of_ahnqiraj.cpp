@@ -148,7 +148,7 @@ void instance_ruins_of_ahnqiraj::OnCreatureEnterCombat(Creature * pCreature)
         case NPC_QIRAJI_WARRIOR:
             /** Create Yeggeth list for Rajaxx Shield ability */
             if (CreatureGroup* g = pCreature->GetCreatureGroup())
-                if (g->GetLeaderGuid().GetEntry() == NPC_MAJOR_YEGGETH)
+                if (g->GetOriginalLeaderGuid().GetEntry() == NPC_MAJOR_YEGGETH)
                     m_lYeggethShieldList.push_back(pCreature->GetGUID());
             // If any creature from Rajaxx's wave enters combat, start Rajaxx event.
             if (m_auiEncounter[TYPE_RAJAXX] == NOT_STARTED)
@@ -414,13 +414,17 @@ void instance_ruins_of_ahnqiraj::SetData(uint32 uiType, uint32 uiData)
             m_auiEncounter[TYPE_KURINNAXX] = uiData;
             break;
         case TYPE_GENERAL_ANDOROV:
-            /** Delete npc menu while in combat */
+            if (uiData == NOT_STARTED || uiData == FAIL)
+            {
+                if (Creature* pAndorov = instance->GetCreature(m_uiAndorovGUID))
+                    pAndorov->SetDefaultGossipMenuId(ANDOROV_GOSSIP_NOT_STARTED);
+            }
             if (uiData == IN_PROGRESS)
             {
                 SetAndorovSquadFaction(1254);
                 if (Creature* pAndorov = instance->GetCreature(m_uiAndorovGUID))
                 {
-                    pAndorov->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+                    pAndorov->SetDefaultGossipMenuId(ANDOROV_GOSSIP_IN_PROGRESS);
                     pAndorov->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_VENDOR);
                 }
             }
@@ -441,14 +445,13 @@ void instance_ruins_of_ahnqiraj::SetData(uint32 uiType, uint32 uiData)
             {
                 if (Creature* pAndorov = instance->GetCreature(m_uiAndorovGUID))
                 {
-                    pAndorov->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
-
                     // World of Warcraft Client Patch 1.10.0 (2006-03-28)
                     // - Lieutenant General Andorov will now offer supplies if kept alive
                     //   through the battle.
                     if (sWorld.GetWowPatch() >= WOW_PATCH_110)
                         pAndorov->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_VENDOR);
 
+                    pAndorov->SetDefaultGossipMenuId(ANDOROV_GOSSIP_DONE);
                     pAndorov->SetRespawnTime(AQ_RESPAWN_FOUR_DAYS);
                 }
                 ForceAndorovSquadDespawn(120000); // Andorov disapears 2 minutes after end of combat
@@ -572,7 +575,7 @@ uint8 instance_ruins_of_ahnqiraj::GetWaveFromCreature(Creature* creature)
         return 0;
     }
 //sLog.nostalrius("group leader : %u",group->GetLeaderGuid().GetEntry());
-    switch (group->GetLeaderGuid().GetEntry())
+    switch (group->GetOriginalLeaderGuid().GetEntry())
     {
         case NPC_CAPTAIN_QEEZ:
             return 1;
