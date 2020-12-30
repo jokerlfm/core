@@ -41,14 +41,10 @@ public:
     bool DPS(Unit* pmTarget, bool pmChase = true);
     bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = false);
     bool Heal(Unit* pmTarget, bool pmCure = true);
-    bool Attack(Unit* pmTarget);
     bool Buff(Unit* pmTarget, bool pmCure = true);
 
     bool DPS_Retribution(Unit* pmTarget, bool pmChase);
     bool DPS_Common(Unit* pmTarget, bool pmChase);
-
-    bool Attack_Retribution(Unit* pmTarget);
-    bool Attack_Common(Unit* pmTarget);
 
     bool Heal_Holy(Unit* pmTarget, bool pmCure);
 

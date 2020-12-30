@@ -19,11 +19,9 @@ public:
 	virtual bool Heal(Unit* pmTarget, bool pmCure = true);
 	virtual bool SubHeal(Unit* pmTarget, bool pmCure = true);
 	virtual bool GroupHeal(float pmMaxHealthPercent = 60.0f);
-	virtual bool Attack(Unit* pmTarget);
 	virtual bool Buff(Unit* pmTarget, bool pmCure = true);
 	virtual bool Assist();
-
-	bool Update(uint32 pmDiff);
+	virtual void Update(uint32 pmDiff);
 
 	void PetAttack(Unit* pmTarget);
 	void PetStop();
@@ -35,7 +33,7 @@ public:
 	bool UseManaPotion();
 	uint32 FindSpellID(std::string pmSpellName);
 	bool SpellValid(uint32 pmSpellID);
-	bool CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance = VISIBILITY_DISTANCE_NORMAL, bool pmCheckAura = false, bool pmOnlyMyAura = false, bool pmClearShapeShift = false);
+	bool CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance = VISIBILITY_DISTANCE_NORMAL, bool pmCheckAura = false, bool pmOnlyMyAura = false, bool pmClearShapeShift = false, bool pmToWeapon = false);
 	void ClearShapeshift();
 	void CancelAura(uint32 pmSpellID);
 	bool CancelAura(std::string pmSpellName);

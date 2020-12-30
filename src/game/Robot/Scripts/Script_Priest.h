@@ -20,11 +20,9 @@ public:
     bool Heal(Unit* pmTarget, bool pmCure = true);
     bool SubHeal(Unit* pmTarget, bool pmCure = true);
     bool GroupHeal(float pmMaxHealthPercent = 60.0f);
-    bool Attack(Unit* pmTarget);
     bool Buff(Unit* pmTarget, bool pmCure = true);
 
     bool DPS_Common(Unit* pmTarget, bool pmChase);
-    bool Attack_Common(Unit* pmTarget);
     bool Heal_Holy(Unit* pmTarget, bool pmCure);
     bool GroupHeal_Holy(float pmMaxHealthPercent);
 };

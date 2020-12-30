@@ -1716,7 +1716,7 @@ void GameObject::Use(Unit* user)
             // EJ auto fish
             player->fishing = true;
             player->AutoStoreLoot(loot);
-            player->SendLootRelease(player->GetObjectGuid());
+            //player->SendLootRelease(player->GetObjectGuid());
             player->FinishSpell(CURRENT_CHANNELED_SPELL);
             return;
         }

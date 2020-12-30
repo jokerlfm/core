@@ -40,7 +40,7 @@
 #endif
 
 #ifndef MELEE_MAX_DISTANCE
-# define MELEE_MAX_DISTANCE 4.0f
+# define MELEE_MAX_DISTANCE 3.0f
 #endif
 
 #ifndef RANGED_NORMAL_DISTANCE
@@ -94,7 +94,7 @@ public:
 	bool RobotsDeleted();
 	uint32 CheckRobotAccount(std::string pmAccountName);
 	bool CreateRobotAccount(std::string pmAccountName);
-	std::string CreateRobotAccount();
+	std::string CreateRobotAccount(uint32 pmRobotID);
 	uint32 CheckAccountCharacter(uint32 pmAccountID);
 	uint32 GetCharacterRace(uint32 pmCharacterID);
 	uint32 CreateRobotCharacter(uint32 pmAccountID);
@@ -114,7 +114,6 @@ public:
 	static RobotManager* instance();
 	void HandlePacket(WorldSession* pmSession, WorldPacket pmPacket);
 	void WhisperTo(Player* pmTarget, std::string pmContent, Language pmLanguage, Player* pmSender);
-	void CheckLevelRobotEntities(uint32 pmLevel, uint32 pmRobotType, uint32 pmTotalCount);
 
 	bool InitializeCharacter(Player* pmTargetPlayer, uint32 pmTargetLevel);
 	void InitializeEquipments(Player* pmTargetPlayer, bool pmReset);
@@ -133,9 +132,8 @@ public:
 	std::unordered_map<uint32, std::string> robotNameMap;
 
 	std::unordered_map<uint8, std::unordered_map<uint8, std::string>> characterTalentTabNameMap;
-	std::set<uint32> deleteRobotAccountSet;
-	int checkDelay;
-	std::unordered_map<uint32, std::unordered_set<RobotEntity*>> robotEntityMap;
+	std::set<uint32> deleteRobotAccountSet;	
+	std::unordered_map<uint32, RobotEntity*> robotEntityMap;
 
 	uint32 nameIndex;
 

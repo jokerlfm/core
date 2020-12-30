@@ -27,23 +27,7 @@ public:
 
     void Update(uint32 pmDiff) override;
 
-    virtual bool Buff();
-    virtual bool Rest();
-    virtual bool PVP();
-    virtual bool Battle();
-    virtual bool Heal();
-    virtual bool Wait();
-    virtual bool Stroll();
-    virtual bool Confuse();
-
-
 public:
-    uint32 soloState;
-    int32 deathDelay;
-    int32 soloDelay;
-    int32 waitDelay;
-    int32 strollDelay;
-    int32 confuseDelay;
-    int32 interestsDelay;
+
 };
 #endif

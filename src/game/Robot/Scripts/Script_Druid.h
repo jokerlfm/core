@@ -33,18 +33,12 @@ public:
     bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = false);
     bool Taunt(Unit* pmTarget);
     bool Heal(Unit* pmTarget, bool pmCure = true);
-    bool Attack(Unit* pmTarget);
     bool Buff(Unit* pmTarget, bool pmCure = true);
 
     bool DPS_Balance(Unit* pmTarget, bool pmChase);
     bool DPS_Feral(Unit* pmTarget, bool pmChase);
     bool DPS_Common(Unit* pmTarget, bool pmChase);
     bool Tank_Feral(Unit* pmTarget, bool pmChase, bool pmSingle = false);
-    bool Attack_Balance(Unit* pmTarget);
-    bool Attack_Feral(Unit* pmTarget);
-    bool Attack_Feral_Cat(Unit* pmTarget);
-    bool Attack_Feral_Bear(Unit* pmTarget);
-    bool Attack_Common(Unit* pmTarget);
     bool Heal_Restoration(Unit* pmTarget, bool pmCure);
 
     int demoralizingRoarDelay;

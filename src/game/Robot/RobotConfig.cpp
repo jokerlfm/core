@@ -103,53 +103,8 @@ bool RobotConfig::StartRobotSystem()
 	Reload();
 
 	Enable = GetIntDefault("Enable", 0);
-	ResetRobots = GetIntDefault("ResetRobots", 0);
-	ResetEquipments = GetIntDefault("ResetEquipments", 0);
-	EnableAlliance = GetIntDefault("EnableAlliance", 1);
-	EnableHorde = GetIntDefault("EnableHorde", 1);
 	AccountNamePrefix = GetStringDefault("AccountNamePrefix", "ROBOT");
-	OnlineLevel = GetIntDefault("OnlineLevel", 0);
-	RobotMinLevel = GetIntDefault("RobotMinLevel", 10);
-	if (RobotMinLevel < 10)
-	{
-		RobotMinLevel = 10;
-	}
-	CountEachLevel = GetIntDefault("CountEachLevel", 100);
-	OnlineMinDelay = GetIntDefault("OnlineMinDelay", 60000);
-	OnlineMaxDelay = GetIntDefault("OnlineMaxDelay", 300000);
-	AssembleDelay = GetIntDefault("AssembleDelay", 1);
-	GroupInterest = GetIntDefault("GroupInterest", 1);
-	TeleportMinRange = GetFloatDefault("TeleportMinRange", 300.0f);
-	TeleportMaxRange = GetFloatDefault("TeleportMaxRange", 1000.0f);
-	DeathMinDelay = GetIntDefault("DeathMinDelay", 1800000);
-	DeathMaxDelay = GetIntDefault("DeathMaxDelay", 3600000);
-	SoloMinDelay = GetIntDefault("SoloMinDelay", 600000);
-	SoloMaxDelay = GetIntDefault("SoloMaxDelay", 1200000);
-	AssembleTeleportMinRange = GetFloatDefault("AssembleTeleportMinRange", 100.0f);
-	DPSDelay = GetIntDefault("DPSDelay", 500);
-	RaidRobotCount = GetIntDefault("RaidRobotCount", 100);
-	RobotClasses = GetStringDefault("RobotClasses", "");
-	RobotClasses = TrimString(RobotClasses);
-	std::vector<std::string> classStringVector = SplitString(RobotClasses, ",", true);
-	RobotClassMap.clear();
-	for (std::vector<std::string>::iterator classIT = classStringVector.begin(); classIT != classStringVector.end(); classIT++)
-	{
-		std::string eachClassString = *classIT;
-		uint32 eachClass = atoi(eachClassString.c_str());
-		RobotClassMap[RobotClassMap.size()] = eachClass;
-	}
-	if (RobotClassMap.size() == 0)
-	{
-		RobotClassMap[RobotClassMap.size()] = 1;
-		RobotClassMap[RobotClassMap.size()] = 2;
-		RobotClassMap[RobotClassMap.size()] = 3;
-		RobotClassMap[RobotClassMap.size()] = 4;
-		RobotClassMap[RobotClassMap.size()] = 5;
-		RobotClassMap[RobotClassMap.size()] = 7;
-		RobotClassMap[RobotClassMap.size()] = 8;
-		RobotClassMap[RobotClassMap.size()] = 9;
-		RobotClassMap[RobotClassMap.size()] = 11;
-	}
+	DPSDelay = GetIntDefault("DPSDelay", 2000);	
 	if (Enable == 0)
 	{
 		sLog.outBasic("Robot system is disabled.");

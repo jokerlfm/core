@@ -37,50 +37,41 @@ void RobotMovement::ResetMovement()
 	}
 }
 
-void RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float pmChaseDistanceMin, uint32 pmLimitDelay)
+bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float pmChaseDistanceMin, uint32 pmLimitDelay)
 {
 	limitDelay = pmLimitDelay;
 	if (!me)
 	{
-		return;
+		return false;
 	}
 	if (!me->IsAlive())
 	{
-		return;
+		return false;
 	}
 	if (me->HasAuraType(SPELL_AURA_MOD_PACIFY))
 	{
-		return;
+		return false;
 	}
 	if (me->HasUnitState(UnitState::UNIT_STAT_NOT_MOVE))
 	{
-		return;
-	}
-	if (me->HasUnitState(UnitState::UNIT_STAT_ROAMING_MOVE))
-	{
-		return;
+		return false;
 	}
 	if (me->IsNonMeleeSpellCasted(false, false, true))
 	{
-		return;
-	}
-	if (me->IsBeingTeleported())
-	{
-		ResetMovement();
-		return;
+		return false;
 	}
 	if (!pmChaseTarget)
 	{
-		return;
+		return false;
 	}
 	if (me->GetMapId() != pmChaseTarget->GetMapId())
 	{
-		return;
+		return false;
 	}
-	float unitTargetDistance = me->GetDistance(pmChaseTarget);
+	float unitTargetDistance = me->GetDistance3dToCenter(pmChaseTarget);
 	if (unitTargetDistance > VISIBILITY_DISTANCE_LARGE)
 	{
-		return;
+		return false;
 	}
 	if (pmChaseTarget->GetTypeId() == TypeID::TYPEID_PLAYER)
 	{
@@ -88,26 +79,31 @@ void RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float p
 		{
 			if (targetPlayer->IsBeingTeleported())
 			{
-				return;
+				return false;
 			}
 		}
-	}
+	}	
 	if (activeMovementType == RobotMovementType::RobotMovementType_Chase)
 	{
 		if (chaseTarget)
 		{
 			if (chaseTarget->GetObjectGuid() == pmChaseTarget->GetObjectGuid())
 			{
-				return;
+				return true;
 			}
 		}
+	}
+	if (me->IsMoving())
+	{
+		me->StopMoving();
+		me->GetMotionMaster()->Clear();
 	}
 	chaseTarget = pmChaseTarget;
 	chaseDistanceMax = pmChaseDistanceMax;
 	chaseDistanceMin = pmChaseDistanceMin;
 	activeMovementType = RobotMovementType::RobotMovementType_Chase;
 
-	if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax)
+	if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax + MELEE_MAX_DISTANCE)
 	{
 		if (me->IsWithinLOSInMap(chaseTarget))
 		{
@@ -115,17 +111,11 @@ void RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float p
 			{
 				me->SetFacingToObject(chaseTarget);
 			}
-			return;
 		}
 	}
-	float checkNearRange = chaseDistanceMax - ATTACK_DISTANCE;
-	if (checkNearRange < chaseDistanceMin)
-	{
-		checkNearRange = chaseDistanceMin;
-	}
-	float distanceInRange = frand(checkNearRange, chaseDistanceMax);
-	chaseTarget->GetNearPoint(chaseTarget, pointTarget.x, pointTarget.y, pointTarget.z, chaseTarget->GetObjectBoundingRadius(), distanceInRange, chaseTarget->GetAngle(me));
-	MovePoint(pointTarget.x, pointTarget.y, pointTarget.z);
+	float distanceInRange = frand(chaseDistanceMin, chaseDistanceMax);
+	me->GetMotionMaster()->MoveDistance(chaseTarget, distanceInRange);
+	return true;
 }
 
 void RobotMovement::MovePosition(Position pmTargetPosition, uint32 pmLimitDelay)
@@ -253,7 +243,7 @@ void RobotMovement::Update(uint32 pmDiff)
 	}
 	case RobotMovementType::RobotMovementType_Point:
 	{
-		float distance = me->GetDistance(pointTarget);
+		float distance = me->GetDistance3dToCenter(pointTarget);
 		if (distance > VISIBILITY_DISTANCE_LARGE || distance < CONTACT_DISTANCE)
 		{
 			ResetMovement();
@@ -283,60 +273,52 @@ void RobotMovement::Update(uint32 pmDiff)
 		{
 			if (Player* targetPlayer = chaseTarget->ToPlayer())
 			{
-				if (targetPlayer->IsBeingTeleported())
+				if (!targetPlayer->IsInWorld())
+				{
+					ResetMovement();
+					break;
+				}
+				else if (targetPlayer->IsBeingTeleported())
 				{
 					ResetMovement();
 					break;
 				}
 			}
 		}
-		float unitTargetDistance = me->GetDistance(chaseTarget);
+		float unitTargetDistance = me->GetDistance3dToCenter(chaseTarget);
 		if (unitTargetDistance > VISIBILITY_DISTANCE_LARGE)
 		{
 			ResetMovement();
 			break;
 		}
-		if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax)
+		if (!me->IsMoving())
 		{
-			if (me->IsWithinLOSInMap(chaseTarget))
+			bool ok = true;
+			if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax + MELEE_MAX_DISTANCE)
 			{
-				if (!me->HasInArc(M_PI / 4, chaseTarget))
+				if (me->IsWithinLOSInMap(chaseTarget))
 				{
-					me->SetFacingToObject(chaseTarget);
+					if (!me->HasInArc(M_PI / 4, chaseTarget))
+					{
+						me->SetFacingToObject(chaseTarget);
+					}
+				}
+				else
+				{
+					ok = false;
 				}
 			}
 			else
 			{
-				float checkNearRange = chaseDistanceMax - ATTACK_DISTANCE;
-				if (checkNearRange < chaseDistanceMin)
-				{
-					checkNearRange = chaseDistanceMin;
-				}
-				float distanceInRange = frand(checkNearRange, chaseDistanceMax);
-				chaseTarget->GetNearPoint(chaseTarget, pointTarget.x, pointTarget.y, pointTarget.z, chaseTarget->GetObjectBoundingRadius(), distanceInRange, chaseTarget->GetAngle(me));
-				MovePoint(pointTarget.x, pointTarget.y, pointTarget.z);
+				ok = false;
 			}
-		}
-		else
-		{
-			float pointTargetDistance = chaseTarget->GetDistance(pointTarget);
-			if (pointTargetDistance >= chaseDistanceMin && pointTargetDistance <= chaseDistanceMax)
+
+			if (!ok)
 			{
-				if (!me->IsMoving())
-				{
-					MovePoint(pointTarget.x, pointTarget.y, pointTarget.z);
-				}
-			}
-			else
-			{
-				float checkNearRange = chaseDistanceMax - ATTACK_DISTANCE;
-				if (checkNearRange < chaseDistanceMin)
-				{
-					checkNearRange = chaseDistanceMin;
-				}
-				float distanceInRange = frand(checkNearRange, chaseDistanceMax);
-				chaseTarget->GetNearPoint(chaseTarget, pointTarget.x, pointTarget.y, pointTarget.z, chaseTarget->GetObjectBoundingRadius(), distanceInRange, chaseTarget->GetAngle(me));
-				MovePoint(pointTarget.x, pointTarget.y, pointTarget.z);
+				float distanceInRange = frand(chaseDistanceMin, chaseDistanceMax);
+				me->GetMotionMaster()->MoveDistance(chaseTarget, distanceInRange);
+				//chaseTarget->GetNearPoint(chaseTarget, pointTarget.x, pointTarget.y, pointTarget.z, 0, distanceInRange, me->GetAngle(chaseTarget));
+				//MovePoint(pointTarget.x, pointTarget.y, pointTarget.z);
 			}
 		}
 		break;

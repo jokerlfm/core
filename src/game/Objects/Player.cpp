@@ -605,7 +605,7 @@ Player::Player(WorldSession* session) : Unit(),
     m_longSightRange = 0.0f;
 
     // EJ robot
-    groupRole = 0;
+    groupRole = 0;    
     rai = NULL;
     // EJ auto fish
     fishing = false;
@@ -20103,6 +20103,10 @@ void Player::AutoStoreLoot(Loot& loot, bool broadcast, uint8 bag, uint8 slot)
 
         Item* pItem = StoreNewItem(dest, lootItem->itemid, true, lootItem->randomPropertyId);
         SendNewItem(pItem, lootItem->count, false, false, broadcast);
+
+        // EJ update loot when auto store
+        loot.NotifyItemRemoved(i);
+        loot.unlootedCount--;
     }
 }
 
@@ -21755,6 +21759,15 @@ void Player::AddCooldown(SpellEntry const& spellEntry, ItemPrototype const* item
             sLog.outDebug("Sending SMSG_COOLDOWN_EVENT with spell id = %u", spellEntry.Id);
         }
     }
+}
+
+bool Player::HasSpellCooldown(uint32 pmSpellID)
+{
+    if (m_cooldownMap.FindBySpellId(pmSpellID) != m_cooldownMap.end())
+    {
+        return true;
+    }
+    return false;
 }
 
 void Player::RemoveSpellCooldown(SpellEntry const& spellEntry, bool updateClient /*= true*/)

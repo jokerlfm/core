@@ -43,29 +43,8 @@ public:
 
 	bool StartRobotSystem();
 	uint32 Enable;
-	uint32 ResetRobots;
-	uint32 ResetEquipments;
-	uint32 EnableAlliance;
-	uint32 EnableHorde;
-	uint32 AssembleDelay;
-	uint32 OnlineLevel;
-	uint32 RobotMinLevel;
-	uint32 CountEachLevel;
-	uint32 OnlineMinDelay;
-	uint32 OnlineMaxDelay;
 	std::string AccountNamePrefix;
-	uint32 GroupInterest;
-	float TeleportMinRange;
-	float TeleportMaxRange;
-	uint32 DeathMinDelay;
-	uint32 DeathMaxDelay;
-	uint32 SoloMinDelay;
-	uint32 SoloMaxDelay;
-	float AssembleTeleportMinRange;
 	uint32 DPSDelay;
-	uint32 RaidRobotCount;
-	std::string RobotClasses;
-	std::unordered_map<uint32, uint32> RobotClassMap;
 
 	std::vector<std::string> SplitString(std::string srcStr, std::string delimStr, bool repeatedCharIgnored);
 	std::string TrimString(std::string srcStr);

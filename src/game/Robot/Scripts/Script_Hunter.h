@@ -29,19 +29,13 @@ public:
     Script_Hunter(Player* pmMe);
     bool DPS(Unit* pmTarget, bool pmChase = true);
     bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = false);
-    bool Heal(Unit* pmTarget, bool pmCure = true);
-    bool Attack(Unit* pmTarget);
+    bool Heal(Unit* pmTarget, bool pmCure = true);    
     bool Buff(Unit* pmTarget, bool pmCure = true);
 
     bool DPS_Common(Unit* pmTarget, bool pmChase);
     bool DPS_BeastMastery(Unit* pmTarget, bool pmChase);
     bool DPS_Marksmanship(Unit* pmTarget, bool pmChase);
     bool DPS_Survival(Unit* pmTarget, bool pmChase);
-
-    bool Attack_Common(Unit* pmTarget);
-    bool Attack_BeastMastery(Unit* pmTarget);
-    bool Attack_Marksmanship(Unit* pmTarget);
-    bool Attack_Survival(Unit* pmTarget);
 
     uint32 aspectType;
 };

@@ -94,9 +94,9 @@ std::set<Unit*> Script_Base::GetAttackersInRange(float pmRangeLimit)
 	return attackers;
 }
 
-bool Script_Base::Update(uint32 pmDiff)
+void Script_Base::Update(uint32 pmDiff)
 {
-	return false;
+	return;
 }
 
 bool Script_Base::DPS(Unit* pmTarget, bool pmChase)
@@ -174,11 +174,6 @@ bool Script_Base::SubHeal(Unit* pmTarget, bool pmCure)
 }
 
 bool Script_Base::GroupHeal(float pmMaxHealthPercent)
-{
-	return false;
-}
-
-bool Script_Base::Attack(Unit* pmTarget)
 {
 	return false;
 }
@@ -385,24 +380,12 @@ bool Script_Base::Chase(Unit* pmTarget, float pmMaxDistance, float pmMinDistance
 	{
 		return false;
 	}
-	if (me->HasAuraType(SPELL_AURA_MOD_PACIFY))
+	if (me->rai->rm->Chase(pmTarget, pmMaxDistance, pmMinDistance))
 	{
-		return false;
+		ChooseTarget(pmTarget);
+		return true;
 	}
-	if (me->HasUnitState(UnitState::UNIT_STAT_NOT_MOVE))
-	{
-		return false;
-	}
-	if (me->HasUnitState(UnitState::UNIT_STAT_ROAMING_MOVE))
-	{
-		return false;
-	}
-	if (me->IsNonMeleeSpellCasted(false, false, true))
-	{
-		return false;
-	}
-	me->rai->rm->Chase(pmTarget, pmMaxDistance, pmMinDistance);
-	return true;
+	return false;
 }
 
 uint32 Script_Base::FindSpellID(std::string pmSpellName)
@@ -432,12 +415,8 @@ bool Script_Base::SpellValid(uint32 pmSpellID)
 	return true;
 }
 
-bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance, bool pmCheckAura, bool pmOnlyMyAura, bool pmClearShapeShift)
+bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance, bool pmCheckAura, bool pmOnlyMyAura, bool pmClearShapeShift, bool pmToWeapon)
 {
-	if (!pmTarget)
-	{
-		return false;
-	}
 	if (!me)
 	{
 		return false;
@@ -446,38 +425,58 @@ bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDis
 	{
 		return true;
 	}
-	if (pmCheckAura)
-	{
-		if (sRobotManager->HasAura(pmTarget, pmSpellName, me))
-		{
-			return false;
-		}
-	}
 	uint32 spellID = FindSpellID(pmSpellName);
 	if (!SpellValid(spellID))
 	{
 		return false;
 	}
 	const SpellEntry* pS = sSpellMgr.GetSpellEntry(spellID);
-	if (pmTarget->GetGUID() != me->GetGUID())
-	{
-		float actualDistance = me->GetDistance(pmTarget);
-		if (actualDistance > pmDistance)
-		{
-			return false;
-		}
-	}
-	if (!me->IsWithinLOSInMap(pmTarget))
-	{
-		return false;
-	}
 	if (!pS)
 	{
 		return false;
 	}
-	if (pmTarget->IsImmuneToSpell(pS, false))
+	if (pmTarget)
 	{
-		return false;
+		if (pmCheckAura)
+		{
+			if (pmToWeapon)
+			{
+				if (Item* myWeapon = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EquipmentSlots::EQUIPMENT_SLOT_MAINHAND))
+				{
+					uint32 currentEnchantmentID = myWeapon->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT);
+					uint32 spellEnchantID = pS->EffectMiscValue[0];
+					if (currentEnchantmentID == spellEnchantID)
+					{
+						return false;
+					}
+				}
+			}
+			else if (sRobotManager->HasAura(pmTarget, pmSpellName, me))
+			{
+				return false;
+			}
+		}
+		if (pmTarget->GetGUID() != me->GetGUID())
+		{
+			float actualDistance = me->GetDistance(pmTarget);
+			if (actualDistance > pmDistance)
+			{
+				return false;
+			}
+		}
+		if (!me->IsWithinLOSInMap(pmTarget))
+		{
+			return false;
+		}
+		if (pmTarget->IsImmuneToSpell(pS, false))
+		{
+			return false;
+		}
+		if (!me->isInFront(pmTarget, pmDistance))
+		{
+			me->SetFacingToObject(pmTarget);
+			return true;
+		}
 	}
 	for (size_t i = 0; i < MAX_SPELL_REAGENTS; i++)
 	{
@@ -493,20 +492,30 @@ bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDis
 	{
 		me->SetStandState(UNIT_STAND_STATE_STAND);
 	}
-	if (me->GetTargetGuid() != pmTarget->GetObjectGuid())
-	{
-		ChooseTarget(pmTarget);
-	}
-	if (!me->isInFront(pmTarget, pmDistance))
-	{
-		me->SetFacingToObject(pmTarget);
-		return true;
-	}
 	if (pmClearShapeShift)
 	{
 		ClearShapeshift();
 	}
-	SpellCastResult scr = me->CastSpell(pmTarget, spellID, false);
+	if (me->GetTargetGuid() != pmTarget->GetObjectGuid())
+	{
+		ChooseTarget(pmTarget);
+	}
+	SpellCastResult scr = SpellCastResult::SPELL_CAST_OK;
+	if (pmToWeapon)
+	{
+		if (Item* myWeapon = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EquipmentSlots::EQUIPMENT_SLOT_MAINHAND))
+		{			
+			scr = me->CastSpell_M(pmTarget, pS, false, myWeapon);
+		}
+		else
+		{
+			scr = SpellCastResult::SPELL_FAILED_TARGET_NO_WEAPONS;
+		}
+	}
+	else
+	{
+		scr = me->CastSpell_M(pmTarget, pS, false);
+	}
 	if (scr == SpellCastResult::SPELL_CAST_OK)
 	{
 		return true;

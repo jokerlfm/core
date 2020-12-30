@@ -42,7 +42,7 @@ void RobotEntity::Update(uint32 pmDiff)
 		}
 		case RobotEntityState::RobotEntityState_CheckAccount:
 		{
-			if (account_name == "")
+			if (account_name.empty())
 			{
 				sLog.outBasic("Robot id-%d level-%d is not ready.", robot_id, target_level);
 				entityState = RobotEntityState::RobotEntityState_CreateAccount;
@@ -57,7 +57,7 @@ void RobotEntity::Update(uint32 pmDiff)
 				}
 				else
 				{
-					sLog.outBasic("Robot account_id level-%d is not ready.", target_level);
+					sLog.outBasic("Robot level-%d is not ready.", target_level);
 					entityState = RobotEntityState::RobotEntityState_CreateAccount;
 				}
 			}
@@ -65,12 +65,12 @@ void RobotEntity::Update(uint32 pmDiff)
 		}
 		case RobotEntityState::RobotEntityState_CreateAccount:
 		{
-			if (account_name != "")
+			if (!account_name.empty())
 			{
 				if (sRobotManager->CreateRobotAccount(account_name))
 				{
 					entityState = RobotEntityState::RobotEntityState_CheckAccount;
-				}				
+				}
 				else
 				{
 					entityState = RobotEntityState::RobotEntityState_None;
@@ -78,12 +78,20 @@ void RobotEntity::Update(uint32 pmDiff)
 			}
 			else
 			{
-				account_name = sRobotManager->CreateRobotAccount();
-				std::ostringstream sqlStream;
-				sqlStream << "update robot set account_name = '" << account_name << "' where robot_id = " << robot_id;
-				std::string sql = sqlStream.str();
-				CharacterDatabase.DirectExecute(sql.c_str());
-				entityState = RobotEntityState::RobotEntityState_CheckAccount;
+				account_name = sRobotManager->CreateRobotAccount(robot_id);
+				if (account_name.empty())
+				{
+					sLog.outBasic("Robot id %d create account failed.", robot_id);
+					entityState = RobotEntityState::RobotEntityState_None;
+				}
+				else
+				{
+					std::ostringstream sqlStream;
+					sqlStream << "update robot set account_name = '" << account_name << "' where robot_id = " << robot_id;
+					std::string sql = sqlStream.str();
+					CharacterDatabase.DirectExecute(sql.c_str());
+					entityState = RobotEntityState::RobotEntityState_CheckAccount;
+				}
 			}
 			break;
 		}
@@ -110,9 +118,7 @@ void RobotEntity::Update(uint32 pmDiff)
 			}
 			else if (robot_type == RobotType::RobotType_Raid)
 			{
-				uint32  targetClass = sRobotConfig.RobotClassMap.size() - 1;
-				targetClass = urand(0, targetClass);
-				targetClass = sRobotConfig.RobotClassMap[targetClass];
+				uint32  targetClass = Classes::CLASS_SHAMAN;
 				uint32 raceIndex = urand(0, sRobotManager->availableRaces[targetClass].size() - 1);
 				uint32 targetRace = sRobotManager->availableRaces[targetClass][raceIndex];
 				character_id = sRobotManager->CreateRobotCharacter(account_id, targetClass, targetRace);
@@ -133,28 +139,6 @@ void RobotEntity::Update(uint32 pmDiff)
 		}
 		case RobotEntityState::RobotEntityState_DoLogin:
 		{
-			if (sRobotConfig.EnableAlliance == 0 || sRobotConfig.EnableHorde == 0)
-			{
-				uint32 characterRace = sRobotManager->GetCharacterRace(character_id);
-				if (sRobotConfig.EnableAlliance == 0)
-				{
-					if (characterRace == Races::RACE_HUMAN || characterRace == Races::RACE_DWARF || characterRace == Races::RACE_NIGHTELF || characterRace == Races::RACE_GNOME)
-					{
-						checkDelay = 1 * TimeConstants::HOUR * TimeConstants::IN_MILLISECONDS;
-						entityState = RobotEntityState::RobotEntityState_None;
-						break;
-					}
-				}
-				if (sRobotConfig.EnableHorde == 0)
-				{
-					if (characterRace == Races::RACE_ORC || characterRace == Races::RACE_UNDEAD || characterRace == Races::RACE_TAUREN || characterRace == Races::RACE_TROLL)
-					{
-						checkDelay = 1 * TimeConstants::HOUR * TimeConstants::IN_MILLISECONDS;
-						entityState = RobotEntityState::RobotEntityState_None;
-						break;
-					}
-				}
-			}
 			sRobotManager->LoginRobot(account_id, character_id);
 			checkDelay = 10 * TimeConstants::IN_MILLISECONDS;
 			entityState = RobotEntityState::RobotEntityState_CheckLogin;

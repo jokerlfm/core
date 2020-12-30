@@ -867,7 +867,7 @@ class Player final: public Unit
         RobotAI* rai;
         uint32 GetMaxTalentCountTab();
         // 0 dps, 1 tank, 2 healer
-        uint32 groupRole;
+        uint32 groupRole;        
         // EJ auto fish
         bool fishing;        
 
@@ -1454,6 +1454,10 @@ class Player final: public Unit
         // cooldown system
         virtual void AddGCD(SpellEntry const& spellEntry, uint32 forcedDuration = 0, bool updateClient = false) override;
         virtual void AddCooldown(SpellEntry const& spellEntry, ItemPrototype const* itemProto = nullptr, bool permanent = false, uint32 forcedDuration = 0) override;
+
+        // EJ robot spell cooldown 
+        bool HasSpellCooldown(uint32 pmSpellID);
+
         virtual void RemoveSpellCooldown(SpellEntry const& spellEntry, bool updateClient = true) override;
         virtual void RemoveSpellCategoryCooldown(uint32 category, bool updateClient = true) override;
         virtual void RemoveAllCooldowns(bool sendOnly = false);
@@ -1900,6 +1904,11 @@ class Player final: public Unit
 
         uint32 GetHomeBindMap() const { return m_homebindMapId; }
         uint16 GetHomeBindAreaId() const { return m_homebindAreaId; }
+
+        // EJ robot 
+        float GetHomeBindX() const { return m_homebindX; }
+        float GetHomeBindY() const { return m_homebindY; }
+        float GetHomeBindZ() const { return m_homebindZ; }
 
         void SendSummonRequest(ObjectGuid summonerGuid, uint32 mapId, uint32 zoneId, float x, float y, float z);
         void SetSummonPoint(uint32 mapid, float x, float y, float z)

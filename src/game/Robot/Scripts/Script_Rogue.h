@@ -18,13 +18,9 @@ public:
     bool DPS(Unit* pmTarget, bool pmChase = true);
     bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = false);
     bool Heal(Unit* pmTarget, bool pmCure = true);
-    bool Attack(Unit* pmTarget);
     bool Buff(Unit* pmTarget, bool pmCure = true);
     bool InterruptCasting(Unit* pmTarget);
 	bool DPS_Common(Unit* pmTarget, bool pmChase = true);
     bool DPS_Combat(Unit* pmTarget, bool pmChase = true);
-
-	bool Attack_Common(Unit* pmTarget);    
-    bool Attack_Combat(Unit* pmTarget);
 };
 #endif

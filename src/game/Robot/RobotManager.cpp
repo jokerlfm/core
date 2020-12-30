@@ -20,6 +20,7 @@
 #include "GridNotifiers.h"
 #include "Script_Paladin.h"
 #include "Script_Hunter.h"
+#include "Script_Shaman.h"
 #include "Strategy_Base.h"
 #include "Strategy_Solo.h"
 #include "Strategy_Group.h"
@@ -36,10 +37,6 @@
 RobotManager::RobotManager()
 {
 	nameIndex = 0;
-	// EJ debug
-	checkDelay = urand(5 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS, 10 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS);
-	//checkDelay = 10 * TimeConstants::IN_MILLISECONDS;
-
 	robotEntityMap.clear();
 	deleteRobotAccountSet.clear();
 	onlinePlayerIDMap.clear();
@@ -55,17 +52,6 @@ void RobotManager::InitializeManager()
 	if (sRobotConfig.Enable == 0)
 	{
 		return;
-	}
-
-	if (sRobotConfig.ResetRobots == 1)
-	{
-		sLog.outBasic("Reset robots");
-		if (DeleteRobots())
-		{
-			sRobotConfig.Enable = 0;
-			sWorld.ShutdownServ(30, SHUTDOWN_MASK_RESTART | SHUTDOWN_MASK_IDLE, RESTART_EXIT_CODE);
-			return;
-		}
 	}
 
 	sLog.outBasic("Initialize robot manager");
@@ -222,7 +208,7 @@ void RobotManager::InitializeManager()
 			re->character_id = character_id;
 			re->target_level = target_level;
 			re->robot_type = robot_type;
-			robotEntityMap[robot_type].insert(re);
+			robotEntityMap[robot_id] = re;
 		} while (worldRobotQR->NextRow());
 		delete worldRobotQR;
 	}
@@ -274,58 +260,6 @@ RobotManager* RobotManager::instance()
 	return &instance;
 }
 
-void RobotManager::CheckLevelRobotEntities(uint32 pmLevel, uint32 pmRobotType, uint32 pmTotalCount)
-{
-	int toOnline = pmTotalCount;
-	for (std::unordered_set<RobotEntity*>::iterator reIT = robotEntityMap[pmRobotType].begin(); reIT != robotEntityMap[pmRobotType].end(); reIT++)
-	{
-		if (RobotEntity* eachRE = *reIT)
-		{
-			if (eachRE->target_level == pmLevel)
-			{
-				if (eachRE->entityState == RobotEntityState::RobotEntityState_OffLine)
-				{
-					eachRE->entityState = RobotEntityState::RobotEntityState_Enter;
-					eachRE->checkDelay = urand(sRobotConfig.OnlineMinDelay, sRobotConfig.OnlineMaxDelay);
-				}
-				toOnline--;
-				if (toOnline <= 0)
-				{
-					break;
-				}
-			}
-		}
-	}
-	while (toOnline > 0)
-	{
-		// add to DB
-		uint32 maxRID = 0;
-		QueryResult* maxRIDQR = CharacterDatabase.PQuery("SELECT robot_id FROM robot where robot_type = %d order by robot_id desc limit 1", pmRobotType);
-		if (maxRIDQR)
-		{
-			Field* fields = maxRIDQR->Fetch();
-			maxRID = fields[0].GetUInt32();
-		}
-		maxRID++;
-
-		std::ostringstream sqlStream;
-		sqlStream << "INSERT INTO robot (robot_id, account_name, character_id, target_level, robot_type) VALUES (" << maxRID << ", '', 0, " << pmLevel << ", " << pmRobotType << ")";
-		std::string sql = sqlStream.str();
-		CharacterDatabase.DirectExecute(sql.c_str());
-
-		RobotEntity* re = new RobotEntity(maxRID);
-		re->account_id = 0;
-		re->character_id = 0;
-		re->target_level = pmLevel;
-		re->robot_type = pmRobotType;
-		robotEntityMap[pmRobotType].insert(re);
-
-		sLog.outBasic("new robot entity created. target level - %d robot type - %d", pmLevel, pmRobotType);
-
-		toOnline--;
-	}
-}
-
 void RobotManager::UpdateRobotManager(uint32 pmDiff)
 {
 	if (sRobotConfig.Enable == 0)
@@ -333,85 +267,9 @@ void RobotManager::UpdateRobotManager(uint32 pmDiff)
 		return;
 	}
 
-	checkDelay -= pmDiff;
-	if (checkDelay < 0)
+	for (std::unordered_map<uint32, RobotEntity*>::iterator reIT = robotEntityMap.begin(); reIT != robotEntityMap.end(); reIT++)
 	{
-		checkDelay = urand(5 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS, 10 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS);
-		onlinePlayerIDMap.clear();
-		std::unordered_set<uint32> onlinePlayerLevelSet;
-		World::SessionMap const& sessMap = sWorld.GetAllSessions();
-		for (const auto& itr : sessMap)
-		{
-			if (WorldSession* eachWS = itr.second)
-			{
-				if (!eachWS->isRobotSession)
-				{
-					if (Player* eachPlayer = eachWS->GetPlayer())
-					{
-						if (!eachPlayer->IsInWorld())
-						{
-							continue;
-						}
-						if (eachPlayer->GetLevel() < sRobotConfig.RobotMinLevel)
-						{
-							continue;
-						}
-						onlinePlayerIDMap[onlinePlayerIDMap.size()] = eachPlayer->GetGUIDLow();
-						if (onlinePlayerLevelSet.find(eachPlayer->GetLevel()) == onlinePlayerLevelSet.end())
-						{
-							onlinePlayerLevelSet.insert(eachPlayer->GetLevel());
-						}
-					}
-				}
-			}
-		}
-		if (sRobotConfig.OnlineLevel >= sRobotConfig.RobotMinLevel)
-		{
-			if (onlinePlayerLevelSet.find(sRobotConfig.OnlineLevel) == onlinePlayerLevelSet.end())
-			{
-				onlinePlayerLevelSet.insert(sRobotConfig.OnlineLevel);
-			}
-		}
-
-		for (std::unordered_set<uint32>::iterator levelIT = onlinePlayerLevelSet.begin(); levelIT != onlinePlayerLevelSet.end(); levelIT++)
-		{
-			uint32 eachLevel = *levelIT;
-			int toOnline = sRobotConfig.CountEachLevel;
-			CheckLevelRobotEntities(eachLevel, RobotType::RobotType_World, toOnline);
-		}
-
-		for (std::unordered_set<RobotEntity*>::iterator reIT = robotEntityMap[RobotType::RobotType_World].begin(); reIT != robotEntityMap[RobotType::RobotType_World].end(); reIT++)
-		{
-			if (RobotEntity* eachRE = *reIT)
-			{
-				if (eachRE->entityState == RobotEntityState::RobotEntityState_Online)
-				{
-					if (onlinePlayerLevelSet.find(eachRE->target_level) == onlinePlayerLevelSet.end())
-					{
-						eachRE->entityState = RobotEntityState::RobotEntityState_Exit;
-						eachRE->checkDelay = urand(sRobotConfig.OnlineMinDelay, sRobotConfig.OnlineMaxDelay);
-					}
-				}
-			}
-		}
-
-		int toOnline = sRobotConfig.RaidRobotCount;
-		if (toOnline > 0)
-		{
-			CheckLevelRobotEntities(60, RobotType::RobotType_Raid, toOnline);
-		}
-	}
-
-	for (std::unordered_set<RobotEntity*>::iterator reIT = robotEntityMap[RobotType::RobotType_World].begin(); reIT != robotEntityMap[RobotType::RobotType_World].end(); reIT++)
-	{
-		if (RobotEntity* eachRE = *reIT)
-		{
-			eachRE->Update(pmDiff);
-		}
-	}
-	for (std::unordered_set<RobotEntity*>::iterator reIT = robotEntityMap[RobotType::RobotType_Raid].begin(); reIT != robotEntityMap[RobotType::RobotType_Raid].end(); reIT++)
-	{
-		if (RobotEntity* eachRE = *reIT)
+		if (RobotEntity* eachRE = reIT->second)
 		{
 			eachRE->Update(pmDiff);
 		}
@@ -441,6 +299,7 @@ bool RobotManager::DeleteRobots()
 		delete accountQR;
 		return true;
 	}
+	robotEntityMap.clear();
 
 	return false;
 }
@@ -505,30 +364,17 @@ bool RobotManager::CreateRobotAccount(std::string pmAccountName)
 	return result;
 }
 
-std::string RobotManager::CreateRobotAccount()
+std::string RobotManager::CreateRobotAccount(uint32 pmRobotID)
 {
 	std::string result = "";
 
-	uint32 checkIndex = 0;
-	while (true)
+	std::ostringstream accountNameStream;
+	accountNameStream << sRobotConfig.AccountNamePrefix << pmRobotID;
+	std::string accountName = accountNameStream.str();
+	AccountOpResult aor = sAccountMgr.CreateAccount(accountName, ROBOT_PASSWORD);
+	if (aor == AccountOpResult::AOR_OK)
 	{
-		std::ostringstream accountNameStream;
-		accountNameStream << sRobotConfig.AccountNamePrefix << checkIndex;
-		std::string accountName = accountNameStream.str();
-		AccountOpResult aor = sAccountMgr.CreateAccount(accountName, ROBOT_PASSWORD);
-		if (aor == AccountOpResult::AOR_NAME_ALREDY_EXIST)
-		{
-			checkIndex++;
-		}
-		else if (aor == AccountOpResult::AOR_OK)
-		{
-			result = accountName;
-			break;
-		}
-		else
-		{
-			break;
-		}
+		result = accountName;
 	}
 
 	return result;
@@ -564,9 +410,7 @@ uint32 RobotManager::GetCharacterRace(uint32 pmCharacterID)
 
 uint32 RobotManager::CreateRobotCharacter(uint32 pmAccountID)
 {
-	uint32  targetClass = sRobotConfig.RobotClassMap.size() - 1;
-	targetClass = urand(0, targetClass);
-	targetClass = sRobotConfig.RobotClassMap[targetClass];
+	uint32  targetClass = Classes::CLASS_SHAMAN;
 	uint32 raceIndex = urand(0, availableRaces[targetClass].size() - 1);
 	uint32 targetRace = availableRaces[targetClass][raceIndex];
 
@@ -683,12 +527,6 @@ void RobotManager::LogoutRobot(uint32 pmCharacterID)
 	Player* checkP = ObjectAccessor::FindPlayer(guid);
 	if (checkP)
 	{
-		if (!checkP->IsAlive())
-		{
-			checkP->ResurrectPlayer(1.0f);
-			checkP->SpawnCorpseBones();
-		}
-		checkP->ClearInCombat();
 		sLog.outBasic("Log out robot %s", checkP->GetName());
 		std::ostringstream msgStream;
 		msgStream << checkP->GetName() << " logged out";
@@ -696,24 +534,17 @@ void RobotManager::LogoutRobot(uint32 pmCharacterID)
 		if (WorldSession* checkWS = checkP->GetSession())
 		{
 			checkWS->LogoutPlayer(true);
-			checkWS->SetDisconnectedSession();
 		}
 	}
 }
 
 void RobotManager::LogoutRobots()
 {
-	for (std::unordered_set<RobotEntity*>::iterator reIT = robotEntityMap[RobotType::RobotType_World].begin(); reIT != robotEntityMap[RobotType::RobotType_World].end(); reIT++)
+	for (std::unordered_map<uint32, RobotEntity*>::iterator reIT = robotEntityMap.begin(); reIT != robotEntityMap.end(); reIT++)
 	{
-		RobotEntity* eachRE = *reIT;
-		LogoutRobot(eachRE->character_id);
-		eachRE->entityState = RobotEntityState::RobotEntityState_CheckLogoff;
-	}
-	for (std::unordered_set<RobotEntity*>::iterator reIT = robotEntityMap[RobotType::RobotType_Raid].begin(); reIT != robotEntityMap[RobotType::RobotType_Raid].end(); reIT++)
-	{
-		RobotEntity* eachRE = *reIT;
-		LogoutRobot(eachRE->character_id);
-		eachRE->entityState = RobotEntityState::RobotEntityState_CheckLogoff;
+		RobotEntity* eachRE = reIT->second;
+		eachRE->entityState = RobotEntityState::RobotEntityState_DoLogoff;
+		eachRE->checkDelay = 5 * TimeConstants::IN_MILLISECONDS;
 	}
 }
 
@@ -773,6 +604,17 @@ bool RobotManager::PrepareRobot(Player* pmRobot)
 					pmRobot->SetAmmo(ammoEntry);
 				}
 			}
+		}
+	}
+	else if (pmRobot->GetClass() == Classes::CLASS_SHAMAN)
+	{
+		if (!pmRobot->HasItemCount(5175))
+		{
+			pmRobot->StoreNewItemInBestSlots(5175, 1);
+		}
+		if (!pmRobot->HasItemCount(5176))
+		{
+			pmRobot->StoreNewItemInBestSlots(5176, 1);
 		}
 	}
 	Pet* checkPet = pmRobot->GetPet();
@@ -1198,6 +1040,11 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 				bool paladinBlessing_might = false;
 				bool paladinBlessing_wisdom = false;
 
+				bool shamanEarthTotem_EarthbindTotem = false;
+				bool shamanEarthTotem_StoneskinTotem = false;
+				//bool shamanEarthTotem_StoneclawTotem = false;
+				bool shamanEarthTotem_StrengthOfEarthTotem = false;
+
 				int rtiIndex = 0;
 
 				bool hunterAspect_wild = false;
@@ -1540,6 +1387,32 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 									}
 								}
 							}
+							if (member->GetClass() == Classes::CLASS_SHAMAN)
+							{
+								if (Script_Shaman* ss = (Script_Shaman*)rs->sb)
+								{
+									if (!shamanEarthTotem_EarthbindTotem)
+									{
+										ss->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_EarthbindTotem;
+										shamanEarthTotem_EarthbindTotem = true;
+									}
+									else if (!shamanEarthTotem_StoneskinTotem)
+									{
+										ss->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_StoneskinTotem;
+										shamanEarthTotem_StoneskinTotem = true;
+									}
+									//else if (!shamanEarthTotem_StoneclawTotem)
+									//{
+									//	ss->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_StoneclawTotem;
+									//	shamanEarthTotem_StoneclawTotem = true;
+									//}
+									else if (!shamanEarthTotem_StrengthOfEarthTotem)
+									{
+										ss->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_StrengthOfEarthTotem;
+										shamanEarthTotem_StrengthOfEarthTotem = true;
+									}
+								}
+							}
 						}
 					}
 				}
@@ -1577,6 +1450,7 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 									member->groupRole = GroupRole::GroupRole_DPS;
 								}
 							}
+							member->rai->rm->ResetMovement();
 						}
 					}
 					replyStream << "Arranged";
@@ -3185,295 +3059,128 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 		}
 		sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
 	}
-	else if (commandName == "front1")
-	{
-		std::ostringstream replyStream;
-		Unit* targetUnit = pmPlayer->GetSelectedUnit();
-		if (targetUnit)
-		{
-			if (pmPlayer->isInFront(targetUnit, M_PI / 16))
-			{
-				replyStream << "Yes";
-			}
-			else
-			{
-				replyStream << "No";
-			}
-		}
-		else
-		{
-			replyStream << "No target";
-		}
-		sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-	}
-	else if (commandName == "chase")
-	{
-		std::ostringstream replyStream;
-		Unit* targetUnit = pmPlayer->GetSelectedUnit();
-		if (targetUnit)
-		{
-			float distance = 5.0f;
-			if (commandVector.size() > 1)
-			{
-				distance = std::atof(commandVector.at(1).c_str());
-			}
-			pmPlayer->GetMotionMaster()->MoveChase(targetUnit, distance);
-			replyStream << "Chasing";
-		}
-		else
-		{
-			replyStream << "No target";
-		}
-		sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-	}
-	else if (commandName == "clear")
-	{
-		std::ostringstream replyStream;
-		pmPlayer->GetMotionMaster()->Clear();
-		replyStream << "Motion cleared";
-		sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-	}
-	else if (commandName == "stop")
-	{
-		std::ostringstream replyStream;
-		pmPlayer->StopMoving();
-		replyStream << "Stopped";
-		sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-	}
-	else if (commandName == "aangle")
-	{
-		Unit* targetUnit = pmPlayer->GetSelectedUnit();
-		std::ostringstream replyStream;
-		if (targetUnit)
-		{
-			float angle = pmPlayer->GetAngle(targetUnit);
-			replyStream << "A-angle : " << angle;
-		}
-		else
-		{
-			replyStream << "No target";
-		}
-		sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-	}
-	else if (commandName == "rangle")
-	{
-		Unit* targetUnit = pmPlayer->GetSelectedUnit();
-		std::ostringstream replyStream;
-		if (targetUnit)
-		{
-			float angle = pmPlayer->GetAngle(targetUnit);
-			angle = angle - pmPlayer->GetOrientation();
-			// move arc to range 0.. 2*pi
-			while (angle >= 2.0f * M_PI_F)
-			{
-				angle -= 2.0f * M_PI_F;
-			}
-			while (angle < 0)
-			{
-				angle += 2.0f * M_PI_F;
-			}
-			replyStream << "R-angle : " << angle;
-		}
-		else
-		{
-			replyStream << "No target";
-		}
-		sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-	}
-	else if (commandName == "tnp")
-	{
-		Unit* targetUnit = pmPlayer->GetSelectedUnit();
-		std::ostringstream replyStream;
-		if (targetUnit)
-		{
-			float distance = 5.0f;
-			float angle = targetUnit->GetAngle(pmPlayer);
-			if (commandVector.size() > 1)
-			{
-				distance = std::stof(commandVector.at(1));
-				if (commandVector.size() > 2)
-				{
-					angle = std::stof(commandVector.at(2));
-				}
-			}
-			float newX = 0.0f;
-			float newY = 0.0f;
-			float newZ = 0.0f;
-			targetUnit->GetNearPoint(targetUnit, newX, newY, newZ, targetUnit->GetObjectBoundingRadius(), distance, angle);
-			pmPlayer->GetMotionMaster()->MovePoint(1, newX, newY, newZ, MoveOptions::MOVE_PATHFINDING | MoveOptions::MOVE_RUN_MODE, 0.0f, pmPlayer->GetAngle(targetUnit));
-			replyStream << "Going to near point";
-		}
-		else
-		{
-			replyStream << "No target";
-		}
-		sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-	}
-	else if (commandName == "pnp")
-	{
-		Unit* targetUnit = pmPlayer->GetSelectedUnit();
-		std::ostringstream replyStream;
-		if (targetUnit)
-		{
-			float distance = 5.0f;
-			float angle = M_PI;
-			if (commandVector.size() > 1)
-			{
-				distance = std::stof(commandVector.at(1));
-				if (commandVector.size() > 2)
-				{
-					angle = std::stof(commandVector.at(2));
-				}
-			}
-			angle = angle + targetUnit->GetOrientation();
-
-			Position tp = targetUnit->GetPosition();
-			float newX = 0.0f;
-			float newY = 0.0f;
-			float newZ = 0.0f;
-			newX = tp.x + (pmPlayer->GetCombatReach() + distance) * std::cos(angle);
-			newY = tp.y + (pmPlayer->GetCombatReach() + distance) * std::sin(angle);
-			newZ = tp.z + 10.0f;
-			pmPlayer->UpdateAllowedPositionZ(newX, newY, newZ);
-			pmPlayer->GetMotionMaster()->MovePoint(1, newX, newY, newZ, MoveOptions::MOVE_PATHFINDING | MoveOptions::MOVE_RUN_MODE, 0.0f, pmPlayer->GetAngle(targetUnit));
-			replyStream << "Going to near point";
-		}
-		else
-		{
-			replyStream << "No target";
-		}
-		sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-	}
-	else if (commandName == "find")
-	{
-		float distance = 5.0f;
-		if (commandVector.size() > 1)
-		{
-			distance = std::stof(commandVector.at(1));
-		}
-		std::list<Creature*> creatures;
-		pmPlayer->GetCreatureListWithEntryInGrid(creatures, 14890, distance);
-		std::ostringstream replyStream;
-		for (Creature* eachCreature : creatures)
-		{
-			replyStream << eachCreature->GetName() << " ";
-		}
-		sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-	}
-	else if (commandName == "emote")
+	else if (commandName == "robot")
 	{
 		if (commandVector.size() > 1)
 		{
-			uint32 emoteID = std::stoi(commandVector.at(1));
-			if (Unit* target = pmPlayer->GetSelectedUnit())
+			std::string robotAction = commandVector.at(1);
+			if (robotAction == "delete")
 			{
-				target->HandleEmoteCommand(emoteID);
-			}
-		}
-	}
-	else if (commandName == "talk")
-	{
-		Unit* targetUnit = pmPlayer->GetSelectedUnit();
-		if (Creature* checkC = targetUnit->ToCreature())
-		{
-			checkC->MonsterSay(0);
-		}
-	}
-	else if (commandName == "cast")
-	{
-		if (Unit* targetUnit = pmPlayer->GetSelectedUnit())
-		{
-			if (commandVector.size() > 1)
-			{
-				uint32 spellID = std::stoi(commandVector.at(1));
-				targetUnit->CastSpell(targetUnit, spellID, false);
-			}
-		}
-	}
-	else if (commandName == "aura")
-	{
-		std::ostringstream replyStream;
-		if (Unit* targetUnit = pmPlayer->GetSelectedUnit())
-		{
-			if (commandVector.size() > 1)
-			{
-				std::string auraCheckType = commandVector.at(1);
-				if (commandVector.size() > 2)
+				std::ostringstream replyStream;
+				bool allOffline = true;
+				for (std::unordered_map<uint32, RobotEntity*>::iterator reIT = robotEntityMap.begin(); reIT != robotEntityMap.end(); reIT++)
 				{
-					uint32 spellID = std::stoi(commandVector.at(2));
-					if (auraCheckType == "has")
+					RobotEntity* eachRE = reIT->second;
+					if (eachRE->entityState != RobotEntityState::RobotEntityState_None && eachRE->entityState != RobotEntityState::RobotEntityState_OffLine)
 					{
-						if (targetUnit->HasAura(spellID))
-						{
-							replyStream << "Has aura : " << spellID;
-						}
-						else
-						{
-							replyStream << "No aura : " << spellID;
-						}
+						allOffline = false;
+						replyStream << "Not all robots are offline. Going offline first";
+						LogoutRobots();
+						break;
 					}
-					else if (auraCheckType == "count")
-					{
-						uint32 ac = targetUnit->GetAuraStack(spellID);
-						replyStream << "Aura count : " << ac;
-					}
-					else if (auraCheckType == "add")
-					{
-						targetUnit->AddAura(spellID);
-						replyStream << "Aura added : " << spellID;
-					}
-					else if (auraCheckType == "remove")
-					{
-						targetUnit->RemoveAurasDueToSpell(spellID);
-						replyStream << "Aura removed : " << spellID;
-					}
-					else if (auraCheckType == "duration")
-					{
-						uint32 duration = targetUnit->GetAuraDuration(spellID);
-						replyStream << "Aura duration : " << duration;
-					}
-					else
-					{
-						replyStream << "Unknown check type";
-					}
+				}
+				if (allOffline)
+				{
+					replyStream << "All robots are offline. Ready to delete";
+					DeleteRobots();
+				}
+				sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
+			}
+			else if (robotAction == "offline")
+			{
+				std::ostringstream replyStream;
+				replyStream << "All robots are going offline";
+				LogoutRobots();
+				sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
+			}
+			else if (robotAction == "online")
+			{
+				if (pmPlayer->GetLevel() < 10)
+				{
+					std::ostringstream replyStream;
+					replyStream << "You level is too low";
+					sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
 				}
 				else
 				{
-					replyStream << "No spell id";
+					int robotCount = 10;
+					if (commandVector.size() > 2)
+					{
+						robotCount = atoi(commandVector.at(2).c_str());
+					}
+					uint32 playerLevel = pmPlayer->GetLevel();
+					// current count 
+					uint32 currentCount = 0;
+					QueryResult* levelRobotQR = CharacterDatabase.PQuery("SELECT count(*) FROM robot where target_level = %d", playerLevel);
+					if (levelRobotQR)
+					{
+						Field* fields = levelRobotQR->Fetch();
+						currentCount = fields[0].GetUInt32();
+					}
+					if (currentCount < robotCount)
+					{
+						// add to DB
+						uint32 maxRID = 0;
+						QueryResult* maxRIDQR = CharacterDatabase.Query("SELECT robot_id FROM robot order by robot_id desc limit 1");
+						if (maxRIDQR)
+						{
+							Field* fields = maxRIDQR->Fetch();
+							maxRID = fields[0].GetUInt32();
+						}
+						maxRID++;
+						int toAdd = robotCount - currentCount;
+						while (toAdd > 0)
+						{
+							std::ostringstream sqlStream;
+							sqlStream << "INSERT INTO robot (robot_id, account_name, character_id, target_level, robot_type) VALUES (" << maxRID << ", '', 0, " << playerLevel << ", 0)";
+							std::string sql = sqlStream.str();
+							CharacterDatabase.DirectExecute(sql.c_str());
+							std::ostringstream replyStream;
+							replyStream << "Robot " << maxRID << " created";
+							sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
+							maxRID++;
+							toAdd--;
+						}
+					}
+					QueryResult* toOnLineQR = CharacterDatabase.PQuery("SELECT robot_id, account_name, character_id FROM robot where target_level = %d", playerLevel);
+					if (toOnLineQR)
+					{
+						do
+						{
+							Field* fields = toOnLineQR->Fetch();
+							uint32 robot_id = fields[0].GetUInt32();
+							std::string account_name = fields[1].GetString();
+							uint32 character_id = fields[2].GetUInt32();
+							if (robotEntityMap.find(robot_id) != robotEntityMap.end())
+							{
+								if (robotEntityMap[robot_id]->entityState == RobotEntityState::RobotEntityState_OffLine)
+								{
+									robotEntityMap[robot_id]->entityState = RobotEntityState::RobotEntityState_Enter;
+									robotEntityMap[robot_id]->checkDelay = 5 * TimeConstants::IN_MILLISECONDS;
+									std::ostringstream replyStream;
+									replyStream << "Robot " << robot_id << " ready to go online";
+									sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
+								}
+							}
+							else
+							{
+								RobotEntity* re = new RobotEntity(robot_id);
+								re->account_id = 0;
+								re->account_name = account_name;
+								re->character_id = character_id;
+								re->target_level = playerLevel;
+								re->robot_type = 0;
+								re->entityState = RobotEntityState::RobotEntityState_Enter;
+								re->checkDelay = 5 * TimeConstants::IN_MILLISECONDS;
+								robotEntityMap[robot_id] = re;
+								std::ostringstream replyStream;
+								replyStream << "Robot " << robot_id << " entity created, ready to go online";
+								sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
+							}
+						} while (toOnLineQR->NextRow());
+					}
 				}
 			}
-			else
-			{
-				replyStream << "No type";
-			}
-		}
-		else
-		{
-			replyStream << "No target";
-		}
-		sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-	}
-	else if (commandName == "side")
-	{
-		if (Unit* targetUnit = pmPlayer->GetSelectedUnit())
-		{
-			pmPlayer->GetMotionMaster()->Clear();
-			pmPlayer->StopMoving();
-			if (pmPlayer->GetStandState() != UnitStandStateType::UNIT_STAND_STATE_STAND)
-			{
-				pmPlayer->SetStandState(UNIT_STAND_STATE_STAND);
-			}
-			if (pmPlayer->IsWalking())
-			{
-				pmPlayer->SetWalk(false);
-			}
-			float distance = pmPlayer->GetDistance(targetUnit);
-			float destX = 0;
-			float destY = 0;
-			float destZ = 0;
-			targetUnit->GetNearPoint(targetUnit, destX, destY, destZ, targetUnit->GetObjectBoundingRadius(), distance, M_PI / 4 + targetUnit->GetAngle(pmPlayer));
-			pmPlayer->GetMotionMaster()->MovePoint(1, destX, destY, destZ, MoveOptions::MOVE_PATHFINDING | MoveOptions::MOVE_RUN_MODE, 0.0f, pmPlayer->GetAngle(targetUnit));
-			sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, "Move side", pmPlayer);
 		}
 	}
 }
@@ -3557,62 +3264,15 @@ void RobotManager::HandlePacket(WorldSession* pmSession, WorldPacket pmPacket)
 				{
 					break;
 				}
-				if (Strategy_Solo* rs = (Strategy_Solo*)me->rai->strategyMap[Strategy_Index::Strategy_Index_Solo])
-				{
-					if (rs->interestsDelay > 0)
-					{
-						WorldPacket p;
-						me->GetSession()->HandleGroupDeclineOpcode(p);
-						std::ostringstream timeLeftStream;
-						timeLeftStream << "Not interested. I will reconsider in " << rs->interestsDelay / 1000 << " seconds";
-						WhisperTo(inviter, timeLeftStream.str(), Language::LANG_UNIVERSAL, me);
-					}
-					else
-					{
-						if (inviter->GetLevel() < me->GetLevel())
-						{
-							WorldPacket p;
-							me->GetSession()->HandleGroupDeclineOpcode(p);
-							std::ostringstream timeLeftStream;
-							timeLeftStream << "Your level is low.";
-							WhisperTo(inviter, timeLeftStream.str(), Language::LANG_UNIVERSAL, me);
-						}
-						else
-						{
-							uint32 acceptInvite = urand(0, 3);
-							if (sRobotConfig.GroupInterest == 0)
-							{
-								acceptInvite = 0;
-							}
-							if (me->rai->robotType == RobotType::RobotType_Raid)
-							{
-								acceptInvite = 0;
-							}
-							if (acceptInvite == 0)
-							{
-								WorldPacket p;
-								uint32 roles_mask = 0;
-								p << roles_mask;
-								me->GetSession()->HandleGroupAcceptOpcode(p);
-								std::ostringstream replyStream_Talent;
-								uint32 characterTalentTab = me->GetMaxTalentCountTab();
-								replyStream_Talent << "My talent category is " << characterTalentTabNameMap[me->GetClass()][characterTalentTab];
-								WhisperTo(inviter, replyStream_Talent.str(), Language::LANG_UNIVERSAL, me);
-								break;
-							}
-							else
-							{
-								rs->interestsDelay = urand(5 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS, 10 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS);
-								WorldPacket p;
-								me->GetSession()->HandleGroupDeclineOpcode(p);
-								std::ostringstream timeLeftStream;
-								timeLeftStream << "Not interested. I will reconsider in " << rs->interestsDelay / 1000 << " seconds";
-								WhisperTo(inviter, timeLeftStream.str(), Language::LANG_UNIVERSAL, me);
-								break;
-							}
-						}
-					}
-				}
+				WorldPacket p;
+				uint32 roles_mask = 0;
+				p << roles_mask;
+				me->GetSession()->HandleGroupAcceptOpcode(p);
+				std::ostringstream replyStream_Talent;
+				uint32 characterTalentTab = me->GetMaxTalentCountTab();
+				replyStream_Talent << "My talent category is " << characterTalentTabNameMap[me->GetClass()][characterTalentTab];
+				WhisperTo(inviter, replyStream_Talent.str(), Language::LANG_UNIVERSAL, me);
+				break;
 			}
 			case BUY_ERR_NOT_ENOUGHT_MONEY:
 			{
@@ -3665,10 +3325,6 @@ void RobotManager::HandlePacket(WorldSession* pmSession, WorldPacket pmPacket)
 				if (me->IsRessurectRequested())
 				{
 					me->ResurectUsingRequestData();
-					if (Strategy_Solo* rs = (Strategy_Solo*)me->rai->strategyMap[Strategy_Index::Strategy_Index_Solo])
-					{
-						rs->deathDelay = 0;
-					}
 				}
 				break;
 			}
@@ -3890,7 +3546,7 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 							}
 							if (rs->Stay(targetGroupRole))
 							{
-								WhisperTo(member, "Staying", Language::LANG_UNIVERSAL, pmSender);
+								WhisperTo(pmSender, "Staying", Language::LANG_UNIVERSAL, member);
 							}
 						}
 					}
@@ -4069,7 +3725,7 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 	{
 		if (pmReceiver)
 		{
-			WhisperTo(pmReceiver, characterTalentTabNameMap[pmReceiver->GetClass()][pmReceiver->GetMaxTalentCountTab()], Language::LANG_UNIVERSAL, pmSender);
+			WhisperTo(pmSender, characterTalentTabNameMap[pmReceiver->GetClass()][pmReceiver->GetMaxTalentCountTab()], Language::LANG_UNIVERSAL, pmReceiver);
 		}
 		else
 		{
@@ -4084,7 +3740,7 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 						{
 							continue;
 						}
-						WhisperTo(member, characterTalentTabNameMap[member->GetClass()][member->GetMaxTalentCountTab()], Language::LANG_UNIVERSAL, pmSender);
+						WhisperTo(pmSender, characterTalentTabNameMap[member->GetClass()][member->GetMaxTalentCountTab()], Language::LANG_UNIVERSAL, member);
 					}
 				}
 			}
@@ -4096,11 +3752,6 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 		{
 			if (myGroup->GetLeaderGuid() == pmSender->GetObjectGuid())
 			{
-				std::string memberType = "all";
-				if (commandVector.size() > 1)
-				{
-					memberType = commandVector.at(1);
-				}
 				for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
 				{
 					Player* member = groupRef->getSource();
@@ -4121,20 +3772,6 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 								continue;
 							}
 						}
-						if (memberType == "melee")
-						{
-							if (member->GetClass() != Classes::CLASS_DRUID && member->GetClass() != Classes::CLASS_PALADIN && member->GetClass() != Classes::CLASS_ROGUE && member->GetClass() != Classes::CLASS_WARRIOR)
-							{
-								continue;
-							}
-						}
-						else if (memberType == "range")
-						{
-							if (member->GetClass() != Classes::CLASS_HUNTER && member->GetClass() != Classes::CLASS_MAGE && member->GetClass() != Classes::CLASS_PRIEST && member->GetClass() != Classes::CLASS_SHAMAN && member->GetClass() != Classes::CLASS_WARLOCK)
-							{
-								continue;
-							}
-						}
 						std::ostringstream replyStream;
 						if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
 						{
@@ -4146,10 +3783,10 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 							{
 								if (member->IsAlive())
 								{
-									if (member->GetDistance(pmSender) < sRobotConfig.AssembleTeleportMinRange)
+									if (member->GetDistance3dToCenter(pmSender) < ATTACK_RANGE_LIMIT)
 									{
 										member->GetMotionMaster()->Clear();
-										member->StopMoving();										
+										member->StopMoving();
 										rs->eatDelay = 0;
 										rs->drinkDelay = 0;
 										member->rai->rm->MovePosition(pmSender->GetPosition());
@@ -4158,27 +3795,13 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 									}
 									else
 									{
-										if (sRobotConfig.AssembleDelay == 0)
-										{
-											rs->teleportAssembleDelay = 1 * TimeConstants::IN_MILLISECONDS;
-										}
-										else
-										{
-											rs->teleportAssembleDelay = 1 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS;
-										}
+										rs->teleportAssembleDelay = 1 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS;
 										replyStream << "I will join you in 1 minute";
 									}
 								}
 								else
 								{
-									if (sRobotConfig.AssembleDelay == 0)
-									{
-										rs->teleportAssembleDelay = 1 * TimeConstants::IN_MILLISECONDS;
-									}
-									else
-									{
-										rs->teleportAssembleDelay = 2 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS;
-									}
+									rs->teleportAssembleDelay = 2 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS;
 									replyStream << "I will revive and join you in 2 minutes";
 								}
 							}
@@ -4779,6 +4402,10 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 										else if (member->GetClass() == Classes::CLASS_PALADIN)
 										{
 											reviveSpellName << "Redemption";
+										}
+										else if (member->GetClass() == Classes::CLASS_SHAMAN)
+										{
+											reviveSpellName << "Ancestral Spirit";
 										}
 										if (deadMap.find(reviveIndex) == deadMap.end())
 										{
@@ -5803,6 +5430,7 @@ bool RobotManager::InitializeCharacter(Player* pmTargetPlayer, uint32 pmTargetLe
 		}
 		case Classes::CLASS_SHAMAN:
 		{
+			pmTargetPlayer->LearnSpell(198, true);
 			pmTargetPlayer->LearnSpell(227, true);
 			//pmTargetPlayer->SetSkill(136, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // stave 
 			break;
@@ -5876,7 +5504,15 @@ bool RobotManager::InitializeCharacter(Player* pmTargetPlayer, uint32 pmTargetLe
 		}
 		else if (pmTargetPlayer->GetClass() == Classes::CLASS_SHAMAN)
 		{
-			specialty = 2;
+			uint8 healer = urand(0, 4);
+			if (healer == 0)
+			{
+				specialty = 2;
+			}
+			else
+			{
+				specialty = 1;
+			}
 		}
 		else if (pmTargetPlayer->GetClass() == Classes::CLASS_PRIEST)
 		{
@@ -6093,10 +5729,6 @@ bool RobotManager::InitializeCharacter(Player* pmTargetPlayer, uint32 pmTargetLe
 	{
 		resetEquipments = true;
 	}
-	else if (sRobotConfig.ResetEquipments == 1)
-	{
-		resetEquipments = true;
-	}
 	InitializeEquipments(pmTargetPlayer, resetEquipments);
 
 	std::ostringstream msgStream;
@@ -6170,7 +5802,7 @@ void RobotManager::InitializeEquipments(Player* pmTargetPlayer, bool pmReset)
 		}
 		else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_MAINHAND)
 		{
-			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(checkEquipSlot))
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
 			{
 				if (const ItemPrototype* checkIT = currentEquip->GetProto())
 				{
@@ -6283,7 +5915,7 @@ void RobotManager::InitializeEquipments(Player* pmTargetPlayer, bool pmReset)
 		}
 		else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_BACK)
 		{
-			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(checkEquipSlot))
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
 			{
 				if (const ItemPrototype* checkIT = currentEquip->GetProto())
 				{
@@ -6309,7 +5941,7 @@ void RobotManager::InitializeEquipments(Player* pmTargetPlayer, bool pmReset)
 			{
 				continue;
 			}
-			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(checkEquipSlot))
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
 			{
 				if (const ItemPrototype* checkIT = currentEquip->GetProto())
 				{
@@ -6335,7 +5967,7 @@ void RobotManager::InitializeEquipments(Player* pmTargetPlayer, bool pmReset)
 			{
 				continue;
 			}
-			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(checkEquipSlot))
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
 			{
 				if (const ItemPrototype* checkIT = currentEquip->GetProto())
 				{
@@ -6361,7 +5993,7 @@ void RobotManager::InitializeEquipments(Player* pmTargetPlayer, bool pmReset)
 			{
 				continue;
 			}
-			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(checkEquipSlot))
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
 			{
 				if (const ItemPrototype* checkIT = currentEquip->GetProto())
 				{
@@ -6614,84 +6246,8 @@ void RobotManager::RandomTeleport(Player* pmTargetPlayer)
 	pmTargetPlayer->StopMoving();
 	pmTargetPlayer->GetMotionMaster()->Clear();
 	pmTargetPlayer->rai->strategyMap[Strategy_Index::Strategy_Index_Solo]->sb->Reset();
-	bool validLocation = false;
-	int destMapID = 0;
-	float destX = 0.0f;
-	float destY = 0.0f;
-	float destZ = 0.0f;
-
-	if (pmTargetPlayer->rai->robotType == RobotType::RobotType_Raid)
-	{
-		// raid robot will only wonder in main city
-		uint32 spawnID = 0;
-		if (pmTargetPlayer->GetRace() == Races::RACE_ORC || pmTargetPlayer->GetRace() == Races::RACE_TAUREN || pmTargetPlayer->GetRace() == Races::RACE_TROLL || pmTargetPlayer->GetRace() == Races::RACE_UNDEAD)
-		{
-			spawnID = urand(0, orgrimmar_gruntSpawnIDMap.size() - 1);
-			spawnID = orgrimmar_gruntSpawnIDMap[spawnID];
-		}
-		else
-		{
-			spawnID = urand(0, ironforge_guardSpawnIDMap.size() - 1);
-			spawnID = ironforge_guardSpawnIDMap[spawnID];
-		}
-		if (spawnID > 0)
-		{
-			if (const CreatureData* cd = sObjectMgr.GetCreatureData(spawnID))
-			{
-				destMapID = cd->position.mapId;
-				destX = cd->position.x;
-				destY = cd->position.y;
-				destZ = cd->position.z;
-				validLocation = true;
-			}
-		}
-	}
-	else if (pmTargetPlayer->rai->robotType == RobotType::RobotType_World)
-	{
-		float distance = frand(sRobotConfig.TeleportMinRange, sRobotConfig.TeleportMaxRange);
-		float angle = frand(0, 2 * M_PI);
-		if (onlinePlayerIDMap.size() > 0)
-		{
-			uint32 playerIndex = urand(0, onlinePlayerIDMap.size() - 1);
-			uint32 cid = onlinePlayerIDMap[playerIndex];
-			ObjectGuid og = ObjectGuid(HighGuid::HIGHGUID_PLAYER, cid);
-			if (Player* targetP = ObjectAccessor::FindPlayer(og))
-			{
-				if (!targetP->IsBeingTeleported())
-				{
-					if (Map* checkMap = targetP->GetMap())
-					{
-						if (!checkMap->Instanceable())
-						{
-							targetP->GetNearPoint(targetP, destX, destY, destZ, targetP->GetObjectBoundingRadius(), distance, angle);
-							destMapID = targetP->GetMapId();
-							validLocation = true;
-						}
-					}
-				}
-			}
-		}
-		if (!validLocation)
-		{
-			if (Corpse* myC = pmTargetPlayer->GetCorpse())
-			{
-				myC->GetNearPoint(myC, destX, destY, destZ, myC->GetObjectBoundingRadius(), distance, angle);
-				destMapID = myC->GetMapId();
-				validLocation = true;
-			}
-		}
-		if (!validLocation)
-		{
-			pmTargetPlayer->GetNearPoint(pmTargetPlayer, destX, destY, destZ, pmTargetPlayer->GetObjectBoundingRadius(), distance, angle);
-			destMapID = pmTargetPlayer->GetMapId();
-			validLocation = true;
-		}
-	}
-	if (validLocation)
-	{
-		pmTargetPlayer->TeleportTo(destMapID, destX, destY, destZ, 0.0f);
-		sLog.outBasic("Teleport robot %s (level %d)", pmTargetPlayer->GetName(), pmTargetPlayer->GetLevel());
-	}
+	pmTargetPlayer->TeleportTo(pmTargetPlayer->GetHomeBindMap(), pmTargetPlayer->GetHomeBindX(), pmTargetPlayer->GetHomeBindY(), pmTargetPlayer->GetHomeBindZ(), 0.0f);
+	sLog.outBasic("Teleport robot %s (level %d)", pmTargetPlayer->GetName(), pmTargetPlayer->GetLevel());
 }
 
 bool RobotManager::TankThreatOK(Player* pmTankPlayer, Unit* pmVictim)

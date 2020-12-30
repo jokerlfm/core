@@ -51,7 +51,7 @@ public:
     void ResetMovement();
     void Update(uint32 pmDiff);
 
-    void Chase(Unit* pmChaseTarget, float pmChaseDistanceMax = FOLLOW_MAX_DISTANCE, float pmChaseDistanceMin = 0.0f, uint32 pmLimitDelay = DEFAULT_MOVEMENT_LIMIT_DELAY);
+    bool Chase(Unit* pmChaseTarget, float pmChaseDistanceMax = FOLLOW_MAX_DISTANCE, float pmChaseDistanceMin = 0.0f, uint32 pmLimitDelay = DEFAULT_MOVEMENT_LIMIT_DELAY);
     void MovePosition(Position pmTargetPosition, uint32 pmLimitDelay = DEFAULT_MOVEMENT_LIMIT_DELAY);
     void MovePosition(float pmX, float pmY, float pmZ, uint32 pmLimitDelay = DEFAULT_MOVEMENT_LIMIT_DELAY);
     void MovePoint(float pmX, float pmY, float pmZ);
