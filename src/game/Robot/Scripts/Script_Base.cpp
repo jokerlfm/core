@@ -415,7 +415,7 @@ bool Script_Base::SpellValid(uint32 pmSpellID)
 	return true;
 }
 
-bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance, bool pmCheckAura, bool pmOnlyMyAura, bool pmClearShapeShift, bool pmToWeapon)
+bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance, bool pmCheckAura, bool pmOnlyMyAura, bool pmClearShapeShift, bool pmToWeapon, std::string pmCheckUnitName)
 {
 	if (!me)
 	{
@@ -424,6 +424,26 @@ bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDis
 	if (me->IsNonMeleeSpellCasted(true, false, true))
 	{
 		return true;
+	}
+	if (!pmTarget)
+	{
+		return false;
+	}
+	if (pmTarget->GetGUID() != me->GetGUID())
+	{
+		float actualDistance = me->GetDistance(pmTarget);
+		if (actualDistance > pmDistance)
+		{
+			return false;
+		}
+	}
+	if (!me->IsWithinLOSInMap(pmTarget))
+	{
+		return false;
+	}
+	if (pmClearShapeShift)
+	{
+		ClearShapeshift();
 	}
 	uint32 spellID = FindSpellID(pmSpellName);
 	if (!SpellValid(spellID))
@@ -435,48 +455,9 @@ bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDis
 	{
 		return false;
 	}
-	if (pmTarget)
+	if (pmTarget->IsImmuneToSpell(pS, false))
 	{
-		if (pmCheckAura)
-		{
-			if (pmToWeapon)
-			{
-				if (Item* myWeapon = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EquipmentSlots::EQUIPMENT_SLOT_MAINHAND))
-				{
-					uint32 currentEnchantmentID = myWeapon->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT);
-					uint32 spellEnchantID = pS->EffectMiscValue[0];
-					if (currentEnchantmentID == spellEnchantID)
-					{
-						return false;
-					}
-				}
-			}
-			else if (sRobotManager->HasAura(pmTarget, pmSpellName, me))
-			{
-				return false;
-			}
-		}
-		if (pmTarget->GetGUID() != me->GetGUID())
-		{
-			float actualDistance = me->GetDistance(pmTarget);
-			if (actualDistance > pmDistance)
-			{
-				return false;
-			}
-		}
-		if (!me->IsWithinLOSInMap(pmTarget))
-		{
-			return false;
-		}
-		if (pmTarget->IsImmuneToSpell(pS, false))
-		{
-			return false;
-		}
-		if (!me->isInFront(pmTarget, pmDistance))
-		{
-			me->SetFacingToObject(pmTarget);
-			return true;
-		}
+		return false;
 	}
 	for (size_t i = 0; i < MAX_SPELL_REAGENTS; i++)
 	{
@@ -492,9 +473,47 @@ bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDis
 	{
 		me->SetStandState(UNIT_STAND_STATE_STAND);
 	}
-	if (pmClearShapeShift)
+	if (!pmCheckUnitName.empty())
 	{
-		ClearShapeshift();
+		if (me->GetNearbyUnitWithName(pmCheckUnitName, pmDistance))
+		{
+			return false;
+		}
+	}
+	if (pmCheckAura)
+	{
+		if (pmToWeapon)
+		{
+			if (Item* myWeapon = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EquipmentSlots::EQUIPMENT_SLOT_MAINHAND))
+			{
+				uint32 currentEnchantmentID = myWeapon->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT);
+				uint32 spellEnchantID = pS->EffectMiscValue[0];
+				if (currentEnchantmentID == spellEnchantID)
+				{
+					return false;
+				}
+			}
+		}
+		else {
+			if (pmOnlyMyAura)
+			{
+				if (sRobotManager->HasAura(pmTarget, pmSpellName, me))
+				{
+					return false;
+				}
+			}
+			else
+			{
+				if (sRobotManager->HasAura(pmTarget, pmSpellName))
+				{
+					return false;
+				}
+			}
+		}
+	}
+	if (!me->isInFront(pmTarget, pmDistance))
+	{
+		me->SetFacingToObject(pmTarget);
 	}
 	if (me->GetTargetGuid() != pmTarget->GetObjectGuid())
 	{
@@ -504,7 +523,7 @@ bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDis
 	if (pmToWeapon)
 	{
 		if (Item* myWeapon = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EquipmentSlots::EQUIPMENT_SLOT_MAINHAND))
-		{			
+		{
 			scr = me->CastSpell_M(pmTarget, pS, false, myWeapon);
 		}
 		else

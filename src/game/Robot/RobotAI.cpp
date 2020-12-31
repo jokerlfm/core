@@ -291,35 +291,35 @@ void RobotMovement::Update(uint32 pmDiff)
 			ResetMovement();
 			break;
 		}
-		if (!me->IsMoving())
+		bool ok = false;
+		if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax + MELEE_MAX_DISTANCE)
 		{
-			bool ok = true;
-			if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax + MELEE_MAX_DISTANCE)
+			if (me->IsWithinLOSInMap(chaseTarget))
 			{
-				if (me->IsWithinLOSInMap(chaseTarget))
+				if (me->IsMoving())
 				{
-					if (!me->HasInArc(M_PI / 4, chaseTarget))
-					{
-						me->SetFacingToObject(chaseTarget);
-					}
+					me->StopMoving();
 				}
-				else
+				else if (!me->HasInArc(M_PI / 4, chaseTarget))
 				{
-					ok = false;
+					me->SetFacingToObject(chaseTarget);
 				}
+				ok = true;
 			}
-			else
+		}
+		if (!ok)
+		{
+			if (me->IsMoving())
 			{
-				ok = false;
+				ok = true;
 			}
-
-			if (!ok)
-			{
-				float distanceInRange = frand(chaseDistanceMin, chaseDistanceMax);
-				me->GetMotionMaster()->MoveDistance(chaseTarget, distanceInRange);
-				//chaseTarget->GetNearPoint(chaseTarget, pointTarget.x, pointTarget.y, pointTarget.z, 0, distanceInRange, me->GetAngle(chaseTarget));
-				//MovePoint(pointTarget.x, pointTarget.y, pointTarget.z);
-			}
+		}
+		if (!ok)
+		{
+			float distanceInRange = frand(chaseDistanceMin, chaseDistanceMax);
+			me->GetMotionMaster()->MoveDistance(chaseTarget, distanceInRange);
+			//chaseTarget->GetNearPoint(chaseTarget, pointTarget.x, pointTarget.y, pointTarget.z, 0, distanceInRange, me->GetAngle(chaseTarget));
+			//MovePoint(pointTarget.x, pointTarget.y, pointTarget.z);
 		}
 		break;
 	}

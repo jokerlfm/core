@@ -1391,6 +1391,7 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 							{
 								if (Script_Shaman* ss = (Script_Shaman*)rs->sb)
 								{
+									ss->totemCastDelay = 0;
 									if (!shamanEarthTotem_EarthbindTotem)
 									{
 										ss->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_EarthbindTotem;
@@ -5055,6 +5056,103 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 									case PaladinBlessingType::PaladinBlessingType_Wisdom:
 									{
 										replyStream << "wisdom";
+										break;
+									}
+									default:
+									{
+										break;
+									}
+									}
+								}
+								WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	else if (commandName == "shet")
+	{
+		if (Group* myGroup = pmSender->GetGroup())
+		{
+			if (myGroup->GetLeaderGuid() == pmSender->GetObjectGuid())
+			{
+				for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
+				{
+					Player* member = groupRef->getSource();
+					if (member)
+					{
+						if (!member->GetSession()->isRobotSession)
+						{
+							continue;
+						}
+						else if (!member->rai)
+						{
+							continue;
+						}
+						if (pmReceiver)
+						{
+							if (pmReceiver->GetGUID() != member->GetGUID())
+							{
+								continue;
+							}
+						}
+						if (member->GetClass() == Classes::CLASS_SHAMAN)
+						{
+							if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
+							{
+								std::ostringstream replyStream;
+								if (Script_Shaman* script = (Script_Shaman*)rs->sb)
+								{
+									if (commandVector.size() > 1)
+									{
+										std::string auratypeName = commandVector.at(1);
+										if (auratypeName == "earthbind")
+										{
+											script->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_EarthbindTotem;
+											script->totemCastDelay = 0;
+										}
+										else if (auratypeName == "stoneskin")
+										{
+											script->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_StoneskinTotem;
+											script->totemCastDelay = 0;
+										}
+										else if (auratypeName == "stoneclaw")
+										{
+											script->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_StoneclawTotem;
+											script->totemCastDelay = 0;
+										}
+										else if (auratypeName == "strength")
+										{
+											script->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_StrengthOfEarthTotem;
+											script->totemCastDelay = 0;
+										}
+										else
+										{
+											replyStream << "Unknown totem";
+										}
+									}
+									switch (script->earthTotemType)
+									{
+									case ShamanEarthTotemType::ShamanEarthTotemType_EarthbindTotem:
+									{
+										replyStream << "earthbind";
+										break;
+									}
+									case ShamanEarthTotemType::ShamanEarthTotemType_StoneskinTotem:
+									{
+										replyStream << "stoneskin";
+										break;
+									}
+									case ShamanEarthTotemType::ShamanEarthTotemType_StoneclawTotem:
+									{
+										replyStream << "stoneclaw";
+										break;
+									}
+									case ShamanEarthTotemType::ShamanEarthTotemType_StrengthOfEarthTotem:
+									{
+										replyStream << "strength";
 										break;
 									}
 									default:

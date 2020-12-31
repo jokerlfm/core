@@ -63,10 +63,13 @@ bool Script_Shaman::Assist()
 		{
 		case ShamanEarthTotemType_EarthbindTotem:
 		{
-			if (CastSpell(me, "Earthbind Totem", SHAMAN_RANGE_DISTANCE, true))
+			if (totemCastDelay <= 0)
 			{
-				totemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
-				return true;
+				if (CastSpell(me, "Earthbind Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Earthbind Totem"))
+				{
+					return true;
+				}
+				totemCastDelay = 15 * TimeConstants::IN_MILLISECONDS;
 			}
 			break;
 		}
@@ -74,11 +77,11 @@ bool Script_Shaman::Assist()
 		{
 			if (totemCastDelay <= 0)
 			{
-				if (CastSpell(me, "Stoneskin Totem", SHAMAN_RANGE_DISTANCE, true))
+				if (CastSpell(me, "Stoneskin Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Stoneskin Totem"))
 				{
-					totemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
 					return true;
 				}
+				totemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
 			}
 			break;
 		}
@@ -86,11 +89,11 @@ bool Script_Shaman::Assist()
 		{
 			if (totemCastDelay <= 0)
 			{
-				if (CastSpell(me, "Stoneclaw Totem", SHAMAN_RANGE_DISTANCE, true))
+				if (CastSpell(me, "Stoneclaw Totem", SHAMAN_RANGE_DISTANCE))
 				{
-					totemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
 					return true;
 				}
+				totemCastDelay = 30 * TimeConstants::IN_MILLISECONDS;
 			}
 			break;
 		}
@@ -98,11 +101,11 @@ bool Script_Shaman::Assist()
 		{
 			if (totemCastDelay <= 0)
 			{
-				if (CastSpell(me, "Strength of Earth Totem", SHAMAN_RANGE_DISTANCE, true))
+				if (CastSpell(me, "Strength of Earth Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Strength of Earth Totem"))
 				{
-					totemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
 					return true;
 				}
+				totemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
 			}
 			break;
 		}
