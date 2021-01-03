@@ -342,7 +342,7 @@ class Unit : public WorldObject
 
         // EJ get unit with entry
         Creature* GetNearbyCreatureWithEntry(uint32 pmEntry, float pmExactDistance = VISIBILITY_DISTANCE_NORMAL);
-        Unit* GetNearbyUnitWithName(std::string pmName, float pmExactDistance = VISIBILITY_DISTANCE_NORMAL, bool pmMySummon = false);
+        Unit* GetNearbyUnitWithName(std::string pmName, float pmExactDistance = VISIBILITY_DISTANCE_NORMAL, bool pmFullMatch = true, bool pmMySummon = false);
 
         void AddToWorld() override;
         void RemoveFromWorld() override;

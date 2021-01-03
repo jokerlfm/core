@@ -79,7 +79,7 @@ bool Script_Shaman::Assist()
 			if (earthTotemCastDelay <= 0)
 			{
 				earthTotemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
-				if (CastSpell(me, "Stoneskin Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Stoneskin Totem"))
+				if (CastSpell(me, "Stoneskin Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Stoneskin Totem", false))
 				{
 					return true;
 				}
@@ -103,7 +103,7 @@ bool Script_Shaman::Assist()
 			if (earthTotemCastDelay <= 0)
 			{
 				earthTotemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
-				if (CastSpell(me, "Strength of Earth Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Strength of Earth Totem"))
+				if (CastSpell(me, "Strength of Earth Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Strength of Earth Totem", false))
 				{
 					return true;
 				}
@@ -279,7 +279,7 @@ bool Script_Shaman::DPS_Enhancement(Unit* pmTarget, bool pmChase)
 		if (fireTotemCastDelay <= 0)
 		{
 			fireTotemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
-			if (CastSpell(me, "Searing Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Searing Totem", true))
+			if (CastSpell(me, "Searing Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Searing Totem", false, true))
 			{
 				return true;
 			}

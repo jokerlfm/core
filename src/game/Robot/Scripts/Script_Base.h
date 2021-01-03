@@ -71,7 +71,7 @@ public:
 	bool UseManaPotion();
 	uint32 FindSpellID(std::string pmSpellName);
 	bool SpellValid(uint32 pmSpellID);
-	bool CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance = VISIBILITY_DISTANCE_NORMAL, bool pmCheckAura = false, bool pmOnlyMyAura = false, bool pmClearShapeShift = false, bool pmToWeapon = false, std::string pmCheckUnitName = "", bool pmMySummon = false);
+	bool CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance = VISIBILITY_DISTANCE_NORMAL, bool pmCheckAura = false, bool pmOnlyMyAura = false, bool pmClearShapeShift = false, bool pmToWeapon = false, std::string pmCheckUnitName = "", bool pmFullMatch = true, bool pmMySummon = false);
 	void ClearShapeshift();
 	void CancelAura(uint32 pmSpellID);
 	bool CancelAura(std::string pmSpellName);

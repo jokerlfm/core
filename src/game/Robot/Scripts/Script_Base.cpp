@@ -745,7 +745,7 @@ bool Script_Base::SpellValid(uint32 pmSpellID)
 	return true;
 }
 
-bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance, bool pmCheckAura, bool pmOnlyMyAura, bool pmClearShapeShift, bool pmToWeapon, std::string pmCheckUnitName, bool pmMySummon)
+bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance, bool pmCheckAura, bool pmOnlyMyAura, bool pmClearShapeShift, bool pmToWeapon, std::string pmCheckUnitName, bool pmFullMatch, bool pmMySummon)
 {
 	if (!me)
 	{
@@ -805,7 +805,7 @@ bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDis
 	}
 	if (!pmCheckUnitName.empty())
 	{
-		if (me->GetNearbyUnitWithName(pmCheckUnitName, pmDistance, pmMySummon))
+		if (me->GetNearbyUnitWithName(pmCheckUnitName, pmDistance, pmFullMatch, pmMySummon))
 		{
 			return false;
 		}

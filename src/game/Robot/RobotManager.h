@@ -104,7 +104,7 @@ public:
 	Player* CheckLogin(uint32 pmAccountID, uint32 pmCharacterID);
 	bool LoginRobot(uint32 pmAccountID, uint32 pmCharacterID);
 	void LogoutRobot(uint32 pmCharacterID);
-	void LogoutRobots();
+	void LogoutRobots(bool pmWait = false, uint32 pmWaitMin = 5, uint32 pmWaitMax = 10);
 	void HandlePlayerSay(Player* pmPlayer, std::string pmContent);
 	void HandleChatCommand(Player* pmSender, std::string pmCMD, Player* pmReceiver = NULL);
 	bool StringEndWith(const std::string& str, const std::string& tail);

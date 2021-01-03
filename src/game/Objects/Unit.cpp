@@ -10302,7 +10302,7 @@ Creature* Unit::GetNearbyCreatureWithEntry(uint32 pmEntry, float pmExactDistance
 	return NULL;
 }
 
-Unit* Unit::GetNearbyUnitWithName(std::string pmName, float pmExactDistance, bool pmMySummon)
+Unit* Unit::GetNearbyUnitWithName(std::string pmName, float pmExactDistance, bool pmFullMatch, bool pmMySummon)
 {
 	std::list<Unit*> targets;
 	MaNGOS::AnyUnitInObjectRangeCheck u_check(this, pmExactDistance);
@@ -10310,7 +10310,23 @@ Unit* Unit::GetNearbyUnitWithName(std::string pmName, float pmExactDistance, boo
 	Cell::VisitAllObjects(this, searcher, pmExactDistance);
 	for (const auto& iter : targets)
 	{
-		if (strcmp(iter->GetName(), pmName.c_str()) == 0)
+		bool match = false;
+		if (pmFullMatch)
+		{			
+			if (strcmp(iter->GetName(), pmName.c_str()) == 0)
+			{
+				match = true;
+			}
+		}
+		else
+		{
+			std::string eachNameString = std::string(iter->GetName());
+			if (eachNameString.find(pmName) != std::string::npos)
+			{
+				match = true;
+			}
+		}
+		if (match)
 		{
 			if (pmMySummon)
 			{

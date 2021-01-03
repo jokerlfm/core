@@ -538,13 +538,18 @@ void RobotManager::LogoutRobot(uint32 pmCharacterID)
 	}
 }
 
-void RobotManager::LogoutRobots()
+void RobotManager::LogoutRobots(bool pmWait, uint32 pmWaitMin, uint32 pmWaitMax)
 {
 	for (std::unordered_map<uint32, RobotEntity*>::iterator reIT = robotEntityMap.begin(); reIT != robotEntityMap.end(); reIT++)
 	{
 		RobotEntity* eachRE = reIT->second;
 		eachRE->entityState = RobotEntityState::RobotEntityState_DoLogoff;
-		eachRE->checkDelay = 5 * TimeConstants::IN_MILLISECONDS;
+		uint32 offlineWaiting = 5;
+		if (pmWait)
+		{
+			offlineWaiting = urand(pmWaitMin, pmWaitMax);
+		}
+		eachRE->checkDelay = offlineWaiting * TimeConstants::IN_MILLISECONDS;
 	}
 }
 
@@ -3090,7 +3095,7 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 			{
 				std::ostringstream replyStream;
 				replyStream << "All robots are going offline";
-				LogoutRobots();
+				LogoutRobots(true, 5, 60);
 				sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
 			}
 			else if (robotAction == "online")
@@ -3108,6 +3113,9 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 					{
 						robotCount = atoi(commandVector.at(2).c_str());
 					}
+					std::ostringstream replyTitleStream;
+					replyTitleStream << "Robot count to go online : " << robotCount;
+					sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyTitleStream.str().c_str(), pmPlayer);
 					uint32 playerLevel = pmPlayer->GetLevel();
 					// current count 
 					uint32 currentCount = 0;
@@ -3156,7 +3164,8 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 								if (robotEntityMap[robot_id]->entityState == RobotEntityState::RobotEntityState_OffLine)
 								{
 									robotEntityMap[robot_id]->entityState = RobotEntityState::RobotEntityState_Enter;
-									robotEntityMap[robot_id]->checkDelay = 5 * TimeConstants::IN_MILLISECONDS;
+									uint32 onlineWaiting = urand(5, robotCount * 10);
+									robotEntityMap[robot_id]->checkDelay = onlineWaiting * TimeConstants::IN_MILLISECONDS;
 									std::ostringstream replyStream;
 									replyStream << "Robot " << robot_id << " ready to go online";
 									sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
@@ -4391,7 +4400,7 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 							if (member->IsAlive())
 							{
 								std::ostringstream reviveSpellName;
-								if (member->GetClass() == Classes::CLASS_DRUID || member->GetClass() == Classes::CLASS_PRIEST || member->GetClass() == Classes::CLASS_PALADIN)
+								if (member->GetClass() == Classes::CLASS_DRUID || member->GetClass() == Classes::CLASS_PRIEST || member->GetClass() == Classes::CLASS_PALADIN || member->GetClass() == Classes::CLASS_SHAMAN)
 								{
 									if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
 									{
