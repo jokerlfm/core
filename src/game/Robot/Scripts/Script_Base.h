@@ -1,10 +1,48 @@
 #ifndef ROBOT_STRATEGIES_SCRIPT_BASE_H
 #define ROBOT_STRATEGIES_SCRIPT_BASE_H
 
+#ifndef MOVEMENT_CHECK_DELAY
+# define MOVEMENT_CHECK_DELAY 200
+#endif
+
+#ifndef DEFAULT_MOVEMENT_LIMIT_DELAY
+# define DEFAULT_MOVEMENT_LIMIT_DELAY 5000
+#endif
+
 #include "Unit.h"
 #include "Item.h"
 #include "Player.h"
 #include "RobotManager.h"
+
+enum RobotMovementType :uint32
+{
+	RobotMovementType_None = 0,
+	RobotMovementType_Point,
+	RobotMovementType_Chase,
+};
+
+class RobotMovement
+{
+public:
+	RobotMovement(Player* pmMe);
+	void ResetMovement();
+	void Update(uint32 pmDiff);
+
+	bool Chase(Unit* pmChaseTarget, float pmChaseDistanceMax = FOLLOW_MAX_DISTANCE, float pmChaseDistanceMin = 0.0f, uint32 pmLimitDelay = DEFAULT_MOVEMENT_LIMIT_DELAY);
+	void MovePosition(Position pmTargetPosition, uint32 pmLimitDelay = DEFAULT_MOVEMENT_LIMIT_DELAY);
+	void MovePosition(float pmX, float pmY, float pmZ, uint32 pmLimitDelay = DEFAULT_MOVEMENT_LIMIT_DELAY);
+	void MovePoint(float pmX, float pmY, float pmZ);
+
+public:
+	Player* me;
+	Unit* chaseTarget;
+	Position pointTarget;
+	uint32 activeMovementType;
+	float chaseDistanceMin;
+	float chaseDistanceMax;
+	int checkDelay;
+	int limitDelay;
+};
 
 class Script_Base
 {
@@ -33,7 +71,7 @@ public:
 	bool UseManaPotion();
 	uint32 FindSpellID(std::string pmSpellName);
 	bool SpellValid(uint32 pmSpellID);
-	bool CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance = VISIBILITY_DISTANCE_NORMAL, bool pmCheckAura = false, bool pmOnlyMyAura = false, bool pmClearShapeShift = false, bool pmToWeapon = false, std::string pmCheckUnitName = "");
+	bool CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance = VISIBILITY_DISTANCE_NORMAL, bool pmCheckAura = false, bool pmOnlyMyAura = false, bool pmClearShapeShift = false, bool pmToWeapon = false, std::string pmCheckUnitName = "", bool pmMySummon = false);
 	void ClearShapeshift();
 	void CancelAura(uint32 pmSpellID);
 	bool CancelAura(std::string pmSpellName);
@@ -46,6 +84,7 @@ public:
 	std::set<Unit*> GetAttackersInRange(float pmRangeLimit = RANGED_MAX_DISTANCE);
 
 	Player* me;
+	RobotMovement* rm;
 	std::unordered_map<std::string, uint32> spellIDMap;
 	std::unordered_map<std::string, uint8> spellLevelMap;
 

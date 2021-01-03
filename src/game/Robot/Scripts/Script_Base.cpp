@@ -12,9 +12,337 @@
 #include "Group.h"
 #include "TargetedMovementGenerator.h"
 
+RobotMovement::RobotMovement(Player* pmMe)
+{
+	me = pmMe;
+	chaseTarget = NULL;
+	activeMovementType = RobotMovementType::RobotMovementType_None;
+	chaseDistanceMin = CONTACT_DISTANCE;
+	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;
+	checkDelay = 0;
+	limitDelay = 0;
+}
+
+void RobotMovement::ResetMovement()
+{
+	chaseTarget = NULL;
+	activeMovementType = RobotMovementType::RobotMovementType_None;
+	chaseDistanceMin = CONTACT_DISTANCE;
+	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;
+	checkDelay = 0;
+	limitDelay = 0;
+	if (me)
+	{
+		me->GetMotionMaster()->Clear();
+		me->StopMoving();
+	}
+}
+
+bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float pmChaseDistanceMin, uint32 pmLimitDelay)
+{
+	limitDelay = pmLimitDelay;
+	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
+	{
+		return false;
+	}
+	if (me->HasAuraType(SPELL_AURA_MOD_PACIFY))
+	{
+		return false;
+	}
+	if (me->HasUnitState(UnitState::UNIT_STAT_NOT_MOVE))
+	{
+		return false;
+	}
+	if (me->IsNonMeleeSpellCasted(false, false, true))
+	{
+		return false;
+	}
+	if (!pmChaseTarget)
+	{
+		return false;
+	}
+	if (me->GetMapId() != pmChaseTarget->GetMapId())
+	{
+		return false;
+	}
+	float unitTargetDistance = me->GetDistance3dToCenter(pmChaseTarget);
+	if (unitTargetDistance > VISIBILITY_DISTANCE_LARGE)
+	{
+		return false;
+	}
+	if (pmChaseTarget->GetTypeId() == TypeID::TYPEID_PLAYER)
+	{
+		if (Player* targetPlayer = pmChaseTarget->ToPlayer())
+		{
+			if (targetPlayer->IsBeingTeleported())
+			{
+				return false;
+			}
+		}
+	}
+	if (activeMovementType == RobotMovementType::RobotMovementType_Chase)
+	{
+		if (chaseTarget)
+		{
+			if (chaseTarget->GetObjectGuid() == pmChaseTarget->GetObjectGuid())
+			{
+				return true;
+			}
+		}
+	}
+	if (me->IsMoving())
+	{
+		me->StopMoving();
+		me->GetMotionMaster()->Clear();
+	}
+	chaseTarget = pmChaseTarget;
+	chaseDistanceMax = pmChaseDistanceMax;
+	chaseDistanceMin = pmChaseDistanceMin;
+	activeMovementType = RobotMovementType::RobotMovementType_Chase;
+
+	if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax + MELEE_MAX_DISTANCE)
+	{
+		if (me->IsWithinLOSInMap(chaseTarget))
+		{
+			if (!me->HasInArc(M_PI / 4, chaseTarget))
+			{
+				me->SetFacingToObject(chaseTarget);
+			}
+		}
+	}
+	if (me->GetStandState() != UnitStandStateType::UNIT_STAND_STATE_STAND)
+	{
+		me->SetStandState(UnitStandStateType::UNIT_STAND_STATE_STAND);
+	}
+	float distanceInRange = frand(chaseDistanceMin, chaseDistanceMax);
+	me->GetMotionMaster()->MoveDistance(chaseTarget, distanceInRange);
+	return true;
+}
+
+void RobotMovement::MovePosition(Position pmTargetPosition, uint32 pmLimitDelay)
+{
+	MovePosition(pmTargetPosition.x, pmTargetPosition.y, pmTargetPosition.z, pmLimitDelay);
+}
+
+void RobotMovement::MovePosition(float pmX, float pmY, float pmZ, uint32 pmLimitDelay)
+{
+	limitDelay = pmLimitDelay;
+	if (!me)
+	{
+		return;
+	}
+	if (!me->IsAlive())
+	{
+		return;
+	}
+	if (me->HasAuraType(SPELL_AURA_MOD_PACIFY))
+	{
+		return;
+	}
+	if (me->HasUnitState(UnitState::UNIT_STAT_NOT_MOVE))
+	{
+		return;
+	}
+	if (me->HasUnitState(UnitState::UNIT_STAT_ROAMING_MOVE))
+	{
+		return;
+	}
+	if (me->IsNonMeleeSpellCasted(false, false, true))
+	{
+		return;
+	}
+	if (me->IsBeingTeleported())
+	{
+		ResetMovement();
+		return;
+	}
+	if (activeMovementType == RobotMovementType::RobotMovementType_Point)
+	{
+		float dx = pointTarget.x - pmX;
+		float dy = pointTarget.y - pmY;
+		float dz = pointTarget.z - pmZ;
+		float gap = sqrt((dx * dx) + (dy * dy) + (dz * dz));
+		if (gap < CONTACT_DISTANCE)
+		{
+			return;
+		}
+	}
+	float distance = me->GetDistance(pmX, pmY, pmZ);
+	if (distance >= 0.0f && distance <= VISIBILITY_DISTANCE_LARGE)
+	{
+		pointTarget.x = pmX;
+		pointTarget.y = pmY;
+		pointTarget.z = pmZ;
+		activeMovementType = RobotMovementType::RobotMovementType_Point;
+		MovePoint(pointTarget.x, pointTarget.y, pointTarget.z);
+	}
+}
+
+void RobotMovement::MovePoint(float pmX, float pmY, float pmZ)
+{
+	if (me)
+	{
+		if (me->GetStandState() != UnitStandStateType::UNIT_STAND_STATE_STAND)
+		{
+			me->SetStandState(UnitStandStateType::UNIT_STAND_STATE_STAND);
+		}
+		me->GetMotionMaster()->MovePoint(1, pmX, pmY, pmZ, MoveOptions::MOVE_PATHFINDING | MoveOptions::MOVE_RUN_MODE);
+	}
+}
+
+void RobotMovement::Update(uint32 pmDiff)
+{
+	checkDelay += pmDiff;
+	if (checkDelay < MOVEMENT_CHECK_DELAY)
+	{
+		return;
+	}
+	checkDelay = 0;
+	if (!me)
+	{
+		return;
+	}
+	if (!me->IsAlive())
+	{
+		return;
+	}
+	if (me->HasAuraType(SPELL_AURA_MOD_PACIFY))
+	{
+		return;
+	}
+	if (me->HasUnitState(UnitState::UNIT_STAT_NOT_MOVE))
+	{
+		return;
+	}
+	if (me->HasUnitState(UnitState::UNIT_STAT_ROAMING_MOVE))
+	{
+		return;
+	}
+	if (me->IsNonMeleeSpellCasted(false, false, true))
+	{
+		return;
+	}
+	if (me->IsBeingTeleported())
+	{
+		ResetMovement();
+		return;
+	}
+	checkDelay += pmDiff;
+	if (limitDelay > 0)
+	{
+		limitDelay -= pmDiff;
+		if (limitDelay <= 0)
+		{
+			ResetMovement();
+		}
+	}
+	switch (activeMovementType)
+	{
+	case RobotMovementType::RobotMovementType_None:
+	{
+		break;
+	}
+	case RobotMovementType::RobotMovementType_Point:
+	{
+		float distance = me->GetDistance3dToCenter(pointTarget);
+		if (distance > VISIBILITY_DISTANCE_LARGE || distance < CONTACT_DISTANCE)
+		{
+			ResetMovement();
+		}
+		else
+		{
+			if (!me->IsMoving())
+			{
+				MovePoint(pointTarget.x, pointTarget.y, pointTarget.z);
+			}
+		}
+		break;
+	}
+	case RobotMovementType::RobotMovementType_Chase:
+	{
+		if (!chaseTarget)
+		{
+			ResetMovement();
+			break;
+		}
+		if (me->GetMapId() != chaseTarget->GetMapId())
+		{
+			ResetMovement();
+			break;
+		}
+		if (chaseTarget->GetTypeId() == TypeID::TYPEID_PLAYER)
+		{
+			if (Player* targetPlayer = chaseTarget->ToPlayer())
+			{
+				if (!targetPlayer->IsInWorld())
+				{
+					ResetMovement();
+					break;
+				}
+				else if (targetPlayer->IsBeingTeleported())
+				{
+					ResetMovement();
+					break;
+				}
+			}
+		}
+		float unitTargetDistance = me->GetDistance3dToCenter(chaseTarget);
+		if (unitTargetDistance > VISIBILITY_DISTANCE_LARGE)
+		{
+			ResetMovement();
+			break;
+		}
+		bool ok = false;
+		if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax + MELEE_MAX_DISTANCE)
+		{
+			if (me->IsWithinLOSInMap(chaseTarget))
+			{
+				if (me->IsMoving())
+				{
+					me->StopMoving();
+				}
+				else if (!me->HasInArc(M_PI / 4, chaseTarget))
+				{
+					me->SetFacingToObject(chaseTarget);
+				}
+				ok = true;
+			}
+		}
+		if (!ok)
+		{
+			if (me->IsMoving())
+			{
+				ok = true;
+			}
+		}
+		if (!ok)
+		{
+			if (me->GetStandState() != UnitStandStateType::UNIT_STAND_STATE_STAND)
+			{
+				me->SetStandState(UnitStandStateType::UNIT_STAND_STATE_STAND);
+			}
+			float distanceInRange = frand(chaseDistanceMin, chaseDistanceMax);
+			me->GetMotionMaster()->MoveDistance(chaseTarget, distanceInRange);
+			//chaseTarget->GetNearPoint(chaseTarget, pointTarget.x, pointTarget.y, pointTarget.z, 0, distanceInRange, me->GetAngle(chaseTarget));
+			//MovePoint(pointTarget.x, pointTarget.y, pointTarget.z);
+		}
+		break;
+	}
+	default:
+	{
+		break;
+	}
+	}
+}
+
 Script_Base::Script_Base(Player* pmMe)
 {
 	me = pmMe;
+	rm = new RobotMovement(me);
 	spellIDMap.clear();
 	spellLevelMap.clear();
 	characterType = 0;
@@ -29,6 +357,7 @@ Script_Base::Script_Base(Player* pmMe)
 void Script_Base::Reset()
 {
 	rti = -1;
+	rm->ResetMovement();
 }
 
 std::set<Unit*> Script_Base::GetAttackersInRange(float pmRangeLimit)
@@ -96,6 +425,7 @@ std::set<Unit*> Script_Base::GetAttackersInRange(float pmRangeLimit)
 
 void Script_Base::Update(uint32 pmDiff)
 {
+	rm->Update(pmDiff);
 	return;
 }
 
@@ -370,7 +700,7 @@ bool Script_Base::Follow(Unit* pmTarget, float pmDistance)
 	{
 		return false;
 	}
-	me->rai->rm->Chase(pmTarget, pmDistance);
+	rm->Chase(pmTarget, pmDistance);
 	return true;
 }
 
@@ -380,7 +710,7 @@ bool Script_Base::Chase(Unit* pmTarget, float pmMaxDistance, float pmMinDistance
 	{
 		return false;
 	}
-	if (me->rai->rm->Chase(pmTarget, pmMaxDistance, pmMinDistance))
+	if (rm->Chase(pmTarget, pmMaxDistance, pmMinDistance))
 	{
 		ChooseTarget(pmTarget);
 		return true;
@@ -415,7 +745,7 @@ bool Script_Base::SpellValid(uint32 pmSpellID)
 	return true;
 }
 
-bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance, bool pmCheckAura, bool pmOnlyMyAura, bool pmClearShapeShift, bool pmToWeapon, std::string pmCheckUnitName)
+bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDistance, bool pmCheckAura, bool pmOnlyMyAura, bool pmClearShapeShift, bool pmToWeapon, std::string pmCheckUnitName, bool pmMySummon)
 {
 	if (!me)
 	{
@@ -475,7 +805,7 @@ bool Script_Base::CastSpell(Unit* pmTarget, std::string pmSpellName, float pmDis
 	}
 	if (!pmCheckUnitName.empty())
 	{
-		if (me->GetNearbyUnitWithName(pmCheckUnitName, pmDistance))
+		if (me->GetNearbyUnitWithName(pmCheckUnitName, pmDistance, pmMySummon))
 		{
 			return false;
 		}

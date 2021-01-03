@@ -34,6 +34,7 @@ public:
 
     void Update(uint32 pmDiff);
     uint32 earthTotemType;
-    int totemCastDelay;
+    int earthTotemCastDelay;
+    int fireTotemCastDelay;
 };
 #endif

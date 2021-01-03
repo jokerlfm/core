@@ -1391,7 +1391,7 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 							{
 								if (Script_Shaman* ss = (Script_Shaman*)rs->sb)
 								{
-									ss->totemCastDelay = 0;
+									ss->earthTotemCastDelay = 0;
 									if (!shamanEarthTotem_EarthbindTotem)
 									{
 										ss->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_EarthbindTotem;
@@ -1451,7 +1451,6 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 									member->groupRole = GroupRole::GroupRole_DPS;
 								}
 							}
-							member->rai->rm->ResetMovement();
 						}
 					}
 					replyStream << "Arranged";
@@ -3501,7 +3500,7 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 								member->StopMoving();
 								member->GetMotionMaster()->Clear();
 								rs->sb->ChooseTarget(pmSender);
-								member->rai->rm->Chase(pmSender, rs->followDistance);
+								rs->sb->rm->Chase(pmSender, rs->followDistance);
 							}
 							std::ostringstream replyStream;
 							replyStream << "Following " << rs->followDistance;
@@ -3790,7 +3789,7 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 										member->StopMoving();
 										rs->eatDelay = 0;
 										rs->drinkDelay = 0;
-										member->rai->rm->MovePosition(pmSender->GetPosition());
+										rs->sb->rm->MovePosition(pmSender->GetPosition());
 										replyStream << "We are close, I will move to you";
 										rs->moveDelay = 3000;
 									}
@@ -4605,7 +4604,7 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 										member->GetMotionMaster()->Clear();
 										member->AttackStop();
 										member->InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
-										member->rai->rm->MovePosition(destX, destY, destZ);
+										rs->sb->rm->MovePosition(destX, destY, destZ);
 										rs->moveDelay = 1000;
 										replyStream << "Move side";
 									}
@@ -4687,7 +4686,7 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 									member->GetMotionMaster()->Clear();
 									member->AttackStop();
 									member->CastStop();
-									member->rai->rm->MovePosition(destX, destY, destZ);
+									rs->sb->rm->MovePosition(destX, destY, destZ);
 									rs->moveDelay = 1000;
 									replyStream << "Move forward";
 								}
@@ -4768,7 +4767,7 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 									member->GetMotionMaster()->Clear();
 									member->AttackStop();
 									member->CastStop();
-									member->rai->rm->MovePosition(destX, destY, destZ);
+									rs->sb->rm->MovePosition(destX, destY, destZ);
 									rs->moveDelay = 1000;
 									replyStream << "Move back";
 								}
@@ -5111,22 +5110,22 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 										if (auratypeName == "earthbind")
 										{
 											script->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_EarthbindTotem;
-											script->totemCastDelay = 0;
+											script->earthTotemCastDelay = 0;
 										}
 										else if (auratypeName == "stoneskin")
 										{
 											script->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_StoneskinTotem;
-											script->totemCastDelay = 0;
+											script->earthTotemCastDelay = 0;
 										}
 										else if (auratypeName == "stoneclaw")
 										{
 											script->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_StoneclawTotem;
-											script->totemCastDelay = 0;
+											script->earthTotemCastDelay = 0;
 										}
 										else if (auratypeName == "strength")
 										{
 											script->earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_StrengthOfEarthTotem;
-											script->totemCastDelay = 0;
+											script->earthTotemCastDelay = 0;
 										}
 										else
 										{
@@ -5214,7 +5213,7 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 								member->StopMoving();
 								member->AttackStop();
 								member->CastStop();
-								member->rai->rm->MovePosition(rs->markPos);
+								rs->sb->rm->MovePosition(rs->markPos);
 							}
 							else
 							{

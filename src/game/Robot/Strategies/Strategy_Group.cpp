@@ -85,6 +85,7 @@ void Strategy_Group::Reset()
 		break;
 	}
 	}
+	sb->Reset();
 }
 
 void Strategy_Group::InitialStrategy()
@@ -1064,6 +1065,7 @@ bool Strategy_Group::Stay(std::string pmTargetGroupRole)
 		me->AttackStop();
 		me->InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
 		sb->PetStop();
+		sb->rm->ResetMovement();
 		staying = true;
 		return true;
 	}

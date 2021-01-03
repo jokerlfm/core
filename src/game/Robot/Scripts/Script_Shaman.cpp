@@ -4,7 +4,8 @@
 Script_Shaman::Script_Shaman(Player* pmMe) :Script_Base(pmMe)
 {
 	earthTotemType = ShamanEarthTotemType::ShamanEarthTotemType_StoneskinTotem;
-	totemCastDelay = 0;
+	earthTotemCastDelay = 0;
+	fireTotemCastDelay = 0;
 }
 
 bool Script_Shaman::Assist()
@@ -17,7 +18,7 @@ bool Script_Shaman::Assist()
 	{
 		return false;
 	}
-	if (totemCastDelay > 0)
+	if (earthTotemCastDelay > 0)
 	{
 		return false;
 	}
@@ -63,49 +64,49 @@ bool Script_Shaman::Assist()
 		{
 		case ShamanEarthTotemType_EarthbindTotem:
 		{
-			if (totemCastDelay <= 0)
+			if (earthTotemCastDelay <= 0)
 			{
+				earthTotemCastDelay = 15 * TimeConstants::IN_MILLISECONDS;
 				if (CastSpell(me, "Earthbind Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Earthbind Totem"))
 				{
 					return true;
 				}
-				totemCastDelay = 15 * TimeConstants::IN_MILLISECONDS;
 			}
 			break;
 		}
 		case ShamanEarthTotemType_StoneskinTotem:
 		{
-			if (totemCastDelay <= 0)
+			if (earthTotemCastDelay <= 0)
 			{
+				earthTotemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
 				if (CastSpell(me, "Stoneskin Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Stoneskin Totem"))
 				{
 					return true;
 				}
-				totemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
 			}
 			break;
 		}
 		case ShamanEarthTotemType_StoneclawTotem:
 		{
-			if (totemCastDelay <= 0)
+			if (earthTotemCastDelay <= 0)
 			{
+				earthTotemCastDelay = 30 * TimeConstants::IN_MILLISECONDS;
 				if (CastSpell(me, "Stoneclaw Totem", SHAMAN_RANGE_DISTANCE))
 				{
 					return true;
 				}
-				totemCastDelay = 30 * TimeConstants::IN_MILLISECONDS;
 			}
 			break;
 		}
 		case ShamanEarthTotemType_StrengthOfEarthTotem:
 		{
-			if (totemCastDelay <= 0)
+			if (earthTotemCastDelay <= 0)
 			{
+				earthTotemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
 				if (CastSpell(me, "Strength of Earth Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Strength of Earth Totem"))
 				{
 					return true;
 				}
-				totemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
 			}
 			break;
 		}
@@ -275,6 +276,14 @@ bool Script_Shaman::DPS_Enhancement(Unit* pmTarget, bool pmChase)
 	me->Attack(pmTarget, true);
 	if (targetDistance < INTERACTION_DISTANCE)
 	{
+		if (fireTotemCastDelay <= 0)
+		{
+			fireTotemCastDelay = 5 * TimeConstants::IN_MILLISECONDS;
+			if (CastSpell(me, "Searing Totem", SHAMAN_RANGE_DISTANCE, false, false, false, false, "Searing Totem", true))
+			{
+				return true;
+			}
+		}
 		if (CastSpell(pmTarget, "Flame Shock", SHAMAN_RANGE_DISTANCE, true, true))
 		{
 			return true;
@@ -376,9 +385,13 @@ bool Script_Shaman::Buff(Unit* pmTarget, bool pmCure)
 
 void Script_Shaman::Update(uint32 pmDiff)
 {
-	if (totemCastDelay > 0)
+	if (earthTotemCastDelay > 0)
 	{
-		totemCastDelay -= pmDiff;
+		earthTotemCastDelay -= pmDiff;
+	}
+	if (fireTotemCastDelay > 0)
+	{
+		fireTotemCastDelay -= pmDiff;
 	}
 	Script_Base::Update(pmDiff);
 }
