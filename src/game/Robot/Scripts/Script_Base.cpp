@@ -18,8 +18,7 @@ RobotMovement::RobotMovement(Player* pmMe)
 	chaseTarget = NULL;
 	activeMovementType = RobotMovementType::RobotMovementType_None;
 	chaseDistanceMin = CONTACT_DISTANCE;
-	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;
-	checkDelay = 0;
+	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;	
 	limitDelay = 0;
 }
 
@@ -28,8 +27,7 @@ void RobotMovement::ResetMovement()
 	chaseTarget = NULL;
 	activeMovementType = RobotMovementType::RobotMovementType_None;
 	chaseDistanceMin = CONTACT_DISTANCE;
-	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;
-	checkDelay = 0;
+	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;	
 	limitDelay = 0;
 	if (me)
 	{
@@ -104,6 +102,10 @@ bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float p
 	chaseDistanceMin = pmChaseDistanceMin;
 	activeMovementType = RobotMovementType::RobotMovementType_Chase;
 
+	if (me->GetStandState() != UnitStandStateType::UNIT_STAND_STATE_STAND)
+	{
+		me->SetStandState(UnitStandStateType::UNIT_STAND_STATE_STAND);
+	}
 	if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax + MELEE_MAX_DISTANCE)
 	{
 		if (me->IsWithinLOSInMap(chaseTarget))
@@ -114,12 +116,11 @@ bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float p
 			}
 		}
 	}
-	if (me->GetStandState() != UnitStandStateType::UNIT_STAND_STATE_STAND)
+	else
 	{
-		me->SetStandState(UnitStandStateType::UNIT_STAND_STATE_STAND);
+		float distanceInRange = frand(chaseDistanceMin, chaseDistanceMax);
+		me->GetMotionMaster()->MoveDistance(chaseTarget, distanceInRange);
 	}
-	float distanceInRange = frand(chaseDistanceMin, chaseDistanceMax);
-	me->GetMotionMaster()->MoveDistance(chaseTarget, distanceInRange);
 	return true;
 }
 
@@ -196,12 +197,6 @@ void RobotMovement::MovePoint(float pmX, float pmY, float pmZ)
 
 void RobotMovement::Update(uint32 pmDiff)
 {
-	checkDelay += pmDiff;
-	if (checkDelay < MOVEMENT_CHECK_DELAY)
-	{
-		return;
-	}
-	checkDelay = 0;
 	if (!me)
 	{
 		return;
@@ -231,7 +226,6 @@ void RobotMovement::Update(uint32 pmDiff)
 		ResetMovement();
 		return;
 	}
-	checkDelay += pmDiff;
 	if (limitDelay > 0)
 	{
 		limitDelay -= pmDiff;
@@ -435,6 +429,11 @@ bool Script_Base::DPS(Unit* pmTarget, bool pmChase)
 }
 
 bool Script_Base::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+{
+	return false;
+}
+
+bool Script_Base::Pull(Unit* pmTarget)
 {
 	return false;
 }

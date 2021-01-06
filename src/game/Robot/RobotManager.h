@@ -94,7 +94,6 @@ public:
 	bool RobotsDeleted();
 	uint32 CheckRobotAccount(std::string pmAccountName);
 	bool CreateRobotAccount(std::string pmAccountName);
-	std::string CreateRobotAccount(uint32 pmRobotID);
 	uint32 CheckAccountCharacter(uint32 pmAccountID);
 	uint32 GetCharacterRace(uint32 pmCharacterID);
 	uint32 CreateRobotCharacter(uint32 pmAccountID);
@@ -133,7 +132,7 @@ public:
 
 	std::unordered_map<uint8, std::unordered_map<uint8, std::string>> characterTalentTabNameMap;
 	std::set<uint32> deleteRobotAccountSet;	
-	std::unordered_map<uint32, RobotEntity*> robotEntityMap;
+	std::unordered_map<std::string, RobotEntity*> robotEntityMap;
 
 	uint32 nameIndex;
 

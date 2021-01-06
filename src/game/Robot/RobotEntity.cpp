@@ -37,27 +37,26 @@ void RobotEntity::Update(uint32 pmDiff)
 		case RobotEntityState::RobotEntityState_Enter:
 		{
 			entityState = RobotEntityState::RobotEntityState_CheckAccount;
-			sLog.outBasic("Robot %d is ready to go online.", robot_id);
+			sLog.outBasic("Robot %s is ready to go online.", account_name);
 			break;
 		}
 		case RobotEntityState::RobotEntityState_CheckAccount:
 		{
 			if (account_name.empty())
 			{
-				sLog.outBasic("Robot id-%d level-%d is not ready.", robot_id, target_level);
-				entityState = RobotEntityState::RobotEntityState_CreateAccount;
+				entityState = RobotEntityState::RobotEntityState_None;
 			}
 			else
 			{
 				account_id = sRobotManager->CheckRobotAccount(account_name);
 				if (account_id > 0)
 				{
-					sLog.outBasic("Robot account_id-%d account_name %s is ready.", account_id, account_name.c_str());
+					sLog.outBasic("Robot %s is ready.", account_name);
 					entityState = RobotEntityState::RobotEntityState_CheckCharacter;
 				}
 				else
 				{
-					sLog.outBasic("Robot level-%d is not ready.", target_level);
+					sLog.outBasic("Robot %s is not ready.", account_name);
 					entityState = RobotEntityState::RobotEntityState_CreateAccount;
 				}
 			}
@@ -65,21 +64,13 @@ void RobotEntity::Update(uint32 pmDiff)
 		}
 		case RobotEntityState::RobotEntityState_CreateAccount:
 		{
-			if (!account_name.empty())
+			if (account_name.empty())
 			{
-				if (sRobotManager->CreateRobotAccount(account_name))
-				{
-					entityState = RobotEntityState::RobotEntityState_CheckAccount;
-				}
-				else
-				{
-					entityState = RobotEntityState::RobotEntityState_None;
-				}
+				entityState = RobotEntityState::RobotEntityState_None;
 			}
 			else
-			{
-				account_name = sRobotManager->CreateRobotAccount(robot_id);
-				if (account_name.empty())
+			{				
+				if (!sRobotManager->CreateRobotAccount(account_name))
 				{
 					sLog.outBasic("Robot id %d create account failed.", robot_id);
 					entityState = RobotEntityState::RobotEntityState_None;

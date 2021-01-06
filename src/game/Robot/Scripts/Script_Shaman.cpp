@@ -211,6 +211,42 @@ bool Script_Shaman::Heal(Unit* pmTarget, bool pmCure)
 	return false;
 }
 
+bool Script_Shaman::Pull(Unit* pmTarget)
+{
+	if (!pmTarget)
+	{
+		return false;
+	}
+	else if (!pmTarget->IsAlive())
+	{
+		return false;
+	}
+	if (!me)
+	{
+		return false;
+	}
+	else if (!me->IsValidAttackTarget(pmTarget))
+	{
+		return false;
+	}
+	float targetDistance = me->GetDistance3dToCenter(pmTarget);
+	if (targetDistance > SHAMAN_HEAL_DISTANCE)
+	{
+		return false;
+	}
+	else if (targetDistance < INTERACTION_DISTANCE)
+	{
+		if (me->IsNonMeleeSpellCasted(true))
+		{
+			me->CastStop();
+		}
+		return false;
+	}
+	CastSpell(pmTarget, "Lightning Bolt", SHAMAN_HEAL_DISTANCE);
+
+	return true;
+}
+
 bool Script_Shaman::DPS(Unit* pmTarget, bool pmChase)
 {
 	if (!me)

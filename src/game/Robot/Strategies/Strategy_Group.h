@@ -73,6 +73,7 @@ public:
     virtual bool DPS();
     virtual bool Tank();
     virtual bool Tank(Unit* pmTarget);
+    virtual bool Pull(Unit* pmTarget);
     virtual bool Rest();
     virtual bool Heal();
     virtual bool Buff();
@@ -90,6 +91,7 @@ public:
     int teleportAssembleDelay;    
     int dpsDelay;
     int engageDelay;
+    int pullDelay;
     int readyCheckDelay;
     float followDistance;
     bool staying;

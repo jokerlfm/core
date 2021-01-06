@@ -208,7 +208,7 @@ void RobotManager::InitializeManager()
 			re->character_id = character_id;
 			re->target_level = target_level;
 			re->robot_type = robot_type;
-			robotEntityMap[robot_id] = re;
+			robotEntityMap[account_name] = re;
 		} while (worldRobotQR->NextRow());
 		delete worldRobotQR;
 	}
@@ -267,7 +267,7 @@ void RobotManager::UpdateRobotManager(uint32 pmDiff)
 		return;
 	}
 
-	for (std::unordered_map<uint32, RobotEntity*>::iterator reIT = robotEntityMap.begin(); reIT != robotEntityMap.end(); reIT++)
+	for (std::unordered_map<std::string, RobotEntity*>::iterator reIT = robotEntityMap.begin(); reIT != robotEntityMap.end(); reIT++)
 	{
 		if (RobotEntity* eachRE = reIT->second)
 		{
@@ -297,11 +297,10 @@ bool RobotManager::DeleteRobots()
 			sLog.outBasic("Delete robot account %d - %s", id, userName.c_str());
 		} while (accountQR->NextRow());
 		delete accountQR;
-		return true;
 	}
 	robotEntityMap.clear();
 
-	return false;
+	return true;
 }
 
 bool RobotManager::RobotsDeleted()
@@ -364,22 +363,6 @@ bool RobotManager::CreateRobotAccount(std::string pmAccountName)
 	return result;
 }
 
-std::string RobotManager::CreateRobotAccount(uint32 pmRobotID)
-{
-	std::string result = "";
-
-	std::ostringstream accountNameStream;
-	accountNameStream << sRobotConfig.AccountNamePrefix << pmRobotID;
-	std::string accountName = accountNameStream.str();
-	AccountOpResult aor = sAccountMgr.CreateAccount(accountName, ROBOT_PASSWORD);
-	if (aor == AccountOpResult::AOR_OK)
-	{
-		result = accountName;
-	}
-
-	return result;
-}
-
 uint32 RobotManager::CheckAccountCharacter(uint32 pmAccountID)
 {
 	uint32 result = 0;
@@ -411,6 +394,10 @@ uint32 RobotManager::GetCharacterRace(uint32 pmCharacterID)
 uint32 RobotManager::CreateRobotCharacter(uint32 pmAccountID)
 {
 	uint32  targetClass = Classes::CLASS_SHAMAN;
+	if (urand(0, 1) == 0)
+	{
+		targetClass = Classes::CLASS_MAGE;
+	}
 	uint32 raceIndex = urand(0, availableRaces[targetClass].size() - 1);
 	uint32 targetRace = availableRaces[targetClass][raceIndex];
 
@@ -540,7 +527,7 @@ void RobotManager::LogoutRobot(uint32 pmCharacterID)
 
 void RobotManager::LogoutRobots(bool pmWait, uint32 pmWaitMin, uint32 pmWaitMax)
 {
-	for (std::unordered_map<uint32, RobotEntity*>::iterator reIT = robotEntityMap.begin(); reIT != robotEntityMap.end(); reIT++)
+	for (std::unordered_map<std::string, RobotEntity*>::iterator reIT = robotEntityMap.begin(); reIT != robotEntityMap.end(); reIT++)
 	{
 		RobotEntity* eachRE = reIT->second;
 		eachRE->entityState = RobotEntityState::RobotEntityState_DoLogoff;
@@ -3073,7 +3060,7 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 			{
 				std::ostringstream replyStream;
 				bool allOffline = true;
-				for (std::unordered_map<uint32, RobotEntity*>::iterator reIT = robotEntityMap.begin(); reIT != robotEntityMap.end(); reIT++)
+				for (std::unordered_map<std::string, RobotEntity*>::iterator reIT = robotEntityMap.begin(); reIT != robotEntityMap.end(); reIT++)
 				{
 					RobotEntity* eachRE = reIT->second;
 					if (eachRE->entityState != RobotEntityState::RobotEntityState_None && eachRE->entityState != RobotEntityState::RobotEntityState_OffLine)
@@ -3095,7 +3082,7 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 			{
 				std::ostringstream replyStream;
 				replyStream << "All robots are going offline";
-				LogoutRobots(true, 5, 60);
+				LogoutRobots(true, 2, 10);
 				sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
 			}
 			else if (robotAction == "online")
@@ -3127,26 +3114,36 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 					}
 					if (currentCount < robotCount)
 					{
-						// add to DB
-						uint32 maxRID = 0;
-						QueryResult* maxRIDQR = CharacterDatabase.Query("SELECT robot_id FROM robot order by robot_id desc limit 1");
-						if (maxRIDQR)
-						{
-							Field* fields = maxRIDQR->Fetch();
-							maxRID = fields[0].GetUInt32();
-						}
-						maxRID++;
 						int toAdd = robotCount - currentCount;
+						uint32 checkNumber = 0;
 						while (toAdd > 0)
 						{
+							std::string checkAccountName = "";
+							while (true)
+							{
+								std::ostringstream accountNameStream;
+								accountNameStream << "ROBOTL" << playerLevel << "N" << checkNumber;
+								checkAccountName = accountNameStream.str();
+								std::ostringstream querySQLStream;
+								querySQLStream << "SELECT * FROM account where username ='" << checkAccountName << "'";
+								std::string querySQL = querySQLStream.str();
+								QueryResult* accountNameQR = LoginDatabase.Query(querySQL.c_str());
+								if (!accountNameQR)
+								{
+									break;
+								}
+								sLog.outBasic("Account %s exists, try again", checkAccountName);
+								checkNumber++;
+							}
+
 							std::ostringstream sqlStream;
-							sqlStream << "INSERT INTO robot (robot_id, account_name, character_id, target_level, robot_type) VALUES (" << maxRID << ", '', 0, " << playerLevel << ", 0)";
+							sqlStream << "INSERT INTO robot (robot_id, account_name, character_id, target_level, robot_type) VALUES (" << checkNumber << ", '" << checkAccountName << "', 0, " << playerLevel << ", 0)";
 							std::string sql = sqlStream.str();
 							CharacterDatabase.DirectExecute(sql.c_str());
 							std::ostringstream replyStream;
-							replyStream << "Robot " << maxRID << " created";
+							replyStream << "Robot " << checkAccountName << " created";
 							sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-							maxRID++;
+							checkNumber++;
 							toAdd--;
 						}
 					}
@@ -3159,15 +3156,15 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 							uint32 robot_id = fields[0].GetUInt32();
 							std::string account_name = fields[1].GetString();
 							uint32 character_id = fields[2].GetUInt32();
-							if (robotEntityMap.find(robot_id) != robotEntityMap.end())
+							if (robotEntityMap.find(account_name) != robotEntityMap.end())
 							{
-								if (robotEntityMap[robot_id]->entityState == RobotEntityState::RobotEntityState_OffLine)
+								if (robotEntityMap[account_name]->entityState == RobotEntityState::RobotEntityState_OffLine)
 								{
-									robotEntityMap[robot_id]->entityState = RobotEntityState::RobotEntityState_Enter;
-									uint32 onlineWaiting = urand(5, robotCount * 10);
-									robotEntityMap[robot_id]->checkDelay = onlineWaiting * TimeConstants::IN_MILLISECONDS;
+									robotEntityMap[account_name]->entityState = RobotEntityState::RobotEntityState_Enter;
+									uint32 onlineWaiting = urand(5, 20);
+									robotEntityMap[account_name]->checkDelay = onlineWaiting * TimeConstants::IN_MILLISECONDS;
 									std::ostringstream replyStream;
-									replyStream << "Robot " << robot_id << " ready to go online";
+									replyStream << "Robot " << account_name << " ready to go online";
 									sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
 								}
 							}
@@ -3181,9 +3178,9 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 								re->robot_type = 0;
 								re->entityState = RobotEntityState::RobotEntityState_Enter;
 								re->checkDelay = 5 * TimeConstants::IN_MILLISECONDS;
-								robotEntityMap[robot_id] = re;
+								robotEntityMap[account_name] = re;
 								std::ostringstream replyStream;
-								replyStream << "Robot " << robot_id << " entity created, ready to go online";
+								replyStream << "Robot " << account_name << " entity created, ready to go online";
 								sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
 							}
 						} while (toOnLineQR->NextRow());
@@ -3334,6 +3331,14 @@ void RobotManager::HandlePacket(WorldSession* pmSession, WorldPacket pmPacket)
 				if (me->IsRessurectRequested())
 				{
 					me->ResurectUsingRequestData();
+					me->rai->strategyMap[Strategy_Index::Strategy_Index_Solo]->sb->Reset();
+					if (Group* myGroup = me->GetGroup())
+					{
+						if (Strategy_Group* rs = (Strategy_Group*)me->rai->strategyMap[myGroup->groupStrategyIndex])
+						{
+							rs->sb->Reset();
+						}
+					}
 				}
 				break;
 			}
@@ -3877,6 +3882,74 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 													rs->engageDelay = engageDelay;
 													std::ostringstream replyStream;
 													replyStream << "Try to tank " << target->GetName();
+													WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	else if (commandName == "pull")
+	{
+		if (Group* myGroup = pmSender->GetGroup())
+		{
+			if (myGroup->GetLeaderGuid() == pmSender->GetObjectGuid())
+			{
+				if (Unit* target = pmSender->GetSelectedUnit())
+				{
+					if (target->IsAlive())
+					{
+						for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
+						{
+							Player* member = groupRef->getSource();
+							if (member)
+							{
+								if (!member->GetSession()->isRobotSession)
+								{
+									continue;
+								}
+								else if (!member->rai)
+								{
+									continue;
+								}
+								if (pmReceiver)
+								{
+									if (pmReceiver->GetGUID() != member->GetGUID())
+									{
+										continue;
+									}
+								}
+								if (member->IsAlive())
+								{
+									if (member->IsValidAttackTarget(target))
+									{
+										if (member->GetDistance3dToCenter(target) < ATTACK_RANGE_LIMIT)
+										{
+											member->SetFacingToObject(target);
+											member->AttackStop();
+											member->StopMoving();
+											member->GetMotionMaster()->Clear();
+											if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
+											{
+												if (rs->Pull(target))
+												{
+													rs->staying = false;
+													rs->engageTarget = target;
+													int pullDelay = 5000;
+													if (commandVector.size() > 1)
+													{
+														std::string checkStr = commandVector.at(1);
+														pullDelay = atoi(checkStr.c_str());
+													}
+													rs->pullDelay = pullDelay;
+													std::ostringstream replyStream;
+													replyStream << "Try to pull " << target->GetName();
 													WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
 												}
 											}

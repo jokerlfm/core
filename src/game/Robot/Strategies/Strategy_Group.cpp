@@ -325,6 +325,44 @@ void Strategy_Group::Update(uint32 pmDiff)
 		{
 			combatTime = 0;
 		}
+		if (pullDelay > 0)
+		{
+			pullDelay -= pmDiff;
+			if (me->IsAlive())
+			{
+				switch (me->groupRole)
+				{
+				case GroupRole::GroupRole_DPS:
+				{
+					pullDelay = 0;
+					break;
+				}
+				case GroupRole::GroupRole_Healer:
+				{
+					pullDelay = 0;
+					break;
+				}
+				case GroupRole::GroupRole_Tank:
+				{
+					if (sb->Pull(engageTarget))
+					{
+						return;
+					}
+					else
+					{
+						engageTarget = NULL;
+						pullDelay = 0;
+					}
+					break;
+				}
+				default:
+				{
+					break;
+				}
+				}
+			}
+			return;
+		}
 		if (engageDelay > 0)
 		{
 			engageDelay -= pmDiff;
@@ -827,9 +865,30 @@ bool Strategy_Group::Tank(Unit* pmTarget)
 	{
 	case GroupRole::GroupRole_Tank:
 	{
+		return sb->Tank(pmTarget, Chasing());
+	}
+	default:
+	{
+		break;
+	}
+	}
+
+	return false;
+}
+
+bool Strategy_Group::Pull(Unit* pmTarget)
+{
+	if (!me)
+	{
+		return false;
+	}
+	switch (me->groupRole)
+	{
+	case GroupRole::GroupRole_Tank:
+	{
 		sb->ClearTarget();
 		sb->ChooseTarget(pmTarget);
-		return sb->Tank(pmTarget, Chasing());
+		return sb->Pull(pmTarget);
 	}
 	default:
 	{

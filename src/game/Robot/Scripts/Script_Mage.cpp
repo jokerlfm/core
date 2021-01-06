@@ -77,9 +77,11 @@ bool Script_Mage::Assist()
 							uint32 duration = sRobotManager->GetAuraDuration(assistTarget, "Polymorph");
 							if (duration < 3000)
 							{
-								Chase(assistTarget, FOLLOW_FAR_DISTANCE);
-								CastSpell(assistTarget, "Polymorph", MAGE_RANGE_DISTANCE);
-								return true;
+								if (me->GetDistance3dToCenter(assistTarget) < MAGE_RANGE_DISTANCE)
+								{
+									CastSpell(assistTarget, "Polymorph", MAGE_RANGE_DISTANCE);
+									return true;
+								}
 							}
 						}
 					}
@@ -246,12 +248,12 @@ bool Script_Mage::DPS_Frost(Unit* pmTarget, bool pmChase)
 		return false;
 	}
 	float targetDistance = me->GetDistance(pmTarget);
+	if (targetDistance > ATTACK_RANGE_LIMIT)
+	{
+		return false;
+	}
 	if (pmChase)
 	{
-		if (targetDistance > ATTACK_RANGE_LIMIT)
-		{
-			return false;
-		}
 		if (!Chase(pmTarget, FOLLOW_FAR_DISTANCE))
 		{
 			return false;

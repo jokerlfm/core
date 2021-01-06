@@ -1,10 +1,6 @@
 #ifndef ROBOT_STRATEGIES_SCRIPT_BASE_H
 #define ROBOT_STRATEGIES_SCRIPT_BASE_H
 
-#ifndef MOVEMENT_CHECK_DELAY
-# define MOVEMENT_CHECK_DELAY 200
-#endif
-
 #ifndef DEFAULT_MOVEMENT_LIMIT_DELAY
 # define DEFAULT_MOVEMENT_LIMIT_DELAY 5000
 #endif
@@ -40,7 +36,6 @@ public:
 	uint32 activeMovementType;
 	float chaseDistanceMin;
 	float chaseDistanceMax;
-	int checkDelay;
 	int limitDelay;
 };
 
@@ -50,8 +45,9 @@ public:
 	Script_Base(Player* pmMe);
 	virtual void Reset();
 	virtual bool DPS(Unit* pmTarget, bool pmChase = true);
-	virtual bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = false);
+	virtual bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = true);
 	virtual bool SubTank(Unit* pmTarget, bool pmChase);
+	virtual bool Pull(Unit* pmTarget);
 	virtual bool Taunt(Unit* pmTarget);
 	virtual bool InterruptCasting(Unit* pmTarget);
 	virtual bool Heal(Unit* pmTarget, bool pmCure = true);
