@@ -866,6 +866,7 @@ class Player final: public Unit
         // EJ robot
         RobotAI* rai;
         uint32 GetMaxTalentCountTab();
+        uint32 GetTalentCount(int pmTab);
         // 0 dps, 1 tank, 2 healer
         uint32 groupRole;        
         // EJ auto fish

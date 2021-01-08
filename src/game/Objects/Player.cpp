@@ -21642,6 +21642,35 @@ uint32 Player::GetMaxTalentCountTab()
     return result;
 }
 
+uint32 Player::GetTalentCount(int pmTab)
+{
+    int count = 0;
+    std::unordered_map<uint32, uint32> tabCountMap;
+    for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
+    {
+        if (TalentEntry const* te = sTalentStore.LookupEntry(i))
+        {
+            if (TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(te->TalentTab))
+            {
+                if ((GetClassMask() & talentTabInfo->ClassMask) != 0)
+                {
+                    if (talentTabInfo->tabpage == pmTab)
+                    {
+                        for (int8 rank = MAX_TALENT_RANK - 1; rank >= 0; --rank)
+                        {
+                            if (HasSpell(te->RankID[rank]))
+                            {
+                                count++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return count;
+}
+
 void Player::AddGCD(SpellEntry const& spellEntry, uint32 /*forcedDuration = 0*/, bool updateClient /*= false*/)
 {
     int32 gcdDuration = spellEntry.StartRecoveryTime;

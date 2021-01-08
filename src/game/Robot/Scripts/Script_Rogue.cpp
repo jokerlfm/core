@@ -10,7 +10,7 @@ bool Script_Rogue::Heal(Unit* pmTarget, bool pmCure)
 	return false;
 }
 
-bool Script_Rogue::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Rogue::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	return false;
 }

@@ -8,7 +8,7 @@ Script_Priest::Script_Priest(Player* pmMe) :Script_Base(pmMe)
 
 }
 
-bool Script_Priest::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Priest::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	return false;
 }
@@ -72,6 +72,10 @@ bool Script_Priest::SubHeal(Unit* pmTarget, bool pmCure)
 bool Script_Priest::Heal(Unit* pmTarget, bool pmCure)
 {
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
 	{
 		return false;
 	}
@@ -199,6 +203,10 @@ bool Script_Priest::GroupHeal(float pmMaxHealthPercent)
 	{
 		return false;
 	}
+	if (!me->IsAlive())
+	{
+		return false;
+	}
 	if ((me->GetPower(Powers::POWER_MANA) * 100 / me->GetMaxPower(Powers::POWER_MANA)) < 30)
 	{
 		UseManaPotion();
@@ -268,6 +276,10 @@ bool Script_Priest::GroupHeal_Holy(float pmMaxHealthPercent)
 bool Script_Priest::DPS(Unit* pmTarget, bool pmChase)
 {
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
 	{
 		return false;
 	}

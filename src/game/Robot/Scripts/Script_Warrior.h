@@ -16,7 +16,7 @@ class Script_Warrior :public Script_Base
 public:
 	Script_Warrior(Player* pmMe);
 	bool DPS(Unit* pmTarget, bool pmChase = true);
-	bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = false);
+	bool Tank(Unit* pmTarget, bool pmChase, bool pmAOE = false);
 	bool Heal(Unit* pmTarget, bool pmCure = true);
 	bool Buff(Unit* pmTarget, bool pmCure = true);
 

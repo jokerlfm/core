@@ -12,21 +12,25 @@ bool Script_Warrior::Heal(Unit* pmTarget, bool pmCure)
 	return false;
 }
 
-bool Script_Warrior::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Warrior::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
-	if (!pmTarget)
-	{
-		return false;
-	}
-	else if (!pmTarget->IsAlive())
-	{
-		return false;
-	}
 	if (!me)
 	{
 		return false;
 	}
-	else if (!me->IsValidAttackTarget(pmTarget))
+	if (!me->IsAlive())
+	{
+		return false;
+	}
+	if (!me->IsValidAttackTarget(pmTarget))
+	{
+		return false;
+	}
+	if (!pmTarget)
+	{
+		return false;
+	}
+	if (!pmTarget->IsAlive())
 	{
 		return false;
 	}
@@ -136,6 +140,10 @@ bool Script_Warrior::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
 bool Script_Warrior::DPS(Unit* pmTarget, bool pmChase)
 {
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
 	{
 		return false;
 	}

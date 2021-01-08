@@ -89,6 +89,7 @@ void RobotManager::InitializeManager()
 	availableRaces[CLASS_ROGUE][availableRaces[CLASS_ROGUE].size()] = RACE_GNOME;
 	availableRaces[CLASS_ROGUE][availableRaces[CLASS_ROGUE].size()] = RACE_ORC;
 	availableRaces[CLASS_ROGUE][availableRaces[CLASS_ROGUE].size()] = RACE_TROLL;
+	availableRaces[CLASS_ROGUE][availableRaces[CLASS_ROGUE].size()] = Races::RACE_UNDEAD;
 
 	availableRaces[CLASS_PRIEST][availableRaces[CLASS_PRIEST].size()] = RACE_HUMAN;
 	availableRaces[CLASS_PRIEST][availableRaces[CLASS_PRIEST].size()] = RACE_DWARF;
@@ -118,6 +119,62 @@ void RobotManager::InitializeManager()
 
 	availableRaces[CLASS_DRUID][availableRaces[CLASS_DRUID].size()] = RACE_NIGHTELF;
 	availableRaces[CLASS_DRUID][availableRaces[CLASS_DRUID].size()] = RACE_TAUREN;
+
+	allianceRaces[CLASS_WARRIOR][allianceRaces[CLASS_WARRIOR].size()] = RACE_HUMAN;
+	allianceRaces[CLASS_WARRIOR][allianceRaces[CLASS_WARRIOR].size()] = RACE_NIGHTELF;
+	allianceRaces[CLASS_WARRIOR][allianceRaces[CLASS_WARRIOR].size()] = RACE_GNOME;
+	allianceRaces[CLASS_WARRIOR][allianceRaces[CLASS_WARRIOR].size()] = RACE_DWARF;
+
+	allianceRaces[CLASS_PALADIN][allianceRaces[CLASS_PALADIN].size()] = RACE_HUMAN;
+	allianceRaces[CLASS_PALADIN][allianceRaces[CLASS_PALADIN].size()] = RACE_DWARF;
+
+	allianceRaces[CLASS_ROGUE][allianceRaces[CLASS_ROGUE].size()] = RACE_HUMAN;
+	allianceRaces[CLASS_ROGUE][allianceRaces[CLASS_ROGUE].size()] = RACE_DWARF;
+	allianceRaces[CLASS_ROGUE][allianceRaces[CLASS_ROGUE].size()] = RACE_NIGHTELF;
+	allianceRaces[CLASS_ROGUE][allianceRaces[CLASS_ROGUE].size()] = RACE_GNOME;
+
+	allianceRaces[CLASS_PRIEST][allianceRaces[CLASS_PRIEST].size()] = RACE_HUMAN;
+	allianceRaces[CLASS_PRIEST][allianceRaces[CLASS_PRIEST].size()] = RACE_DWARF;
+	allianceRaces[CLASS_PRIEST][allianceRaces[CLASS_PRIEST].size()] = RACE_NIGHTELF;
+
+	allianceRaces[CLASS_MAGE][allianceRaces[CLASS_MAGE].size()] = RACE_HUMAN;
+	allianceRaces[CLASS_MAGE][allianceRaces[CLASS_MAGE].size()] = RACE_GNOME;
+
+	allianceRaces[CLASS_WARLOCK][allianceRaces[CLASS_WARLOCK].size()] = RACE_HUMAN;
+	allianceRaces[CLASS_WARLOCK][allianceRaces[CLASS_WARLOCK].size()] = RACE_GNOME;
+
+	allianceRaces[CLASS_HUNTER][allianceRaces[CLASS_HUNTER].size()] = RACE_DWARF;
+	allianceRaces[CLASS_HUNTER][allianceRaces[CLASS_HUNTER].size()] = RACE_NIGHTELF;
+
+	allianceRaces[CLASS_DRUID][allianceRaces[CLASS_DRUID].size()] = RACE_NIGHTELF;
+
+	hordeRaces[CLASS_WARRIOR][hordeRaces[CLASS_WARRIOR].size()] = RACE_ORC;
+	hordeRaces[CLASS_WARRIOR][hordeRaces[CLASS_WARRIOR].size()] = Races::RACE_UNDEAD;
+	hordeRaces[CLASS_WARRIOR][hordeRaces[CLASS_WARRIOR].size()] = RACE_TAUREN;
+	hordeRaces[CLASS_WARRIOR][hordeRaces[CLASS_WARRIOR].size()] = RACE_TROLL;
+
+	hordeRaces[CLASS_ROGUE][hordeRaces[CLASS_ROGUE].size()] = RACE_ORC;
+	hordeRaces[CLASS_ROGUE][hordeRaces[CLASS_ROGUE].size()] = RACE_TROLL;
+	hordeRaces[CLASS_ROGUE][hordeRaces[CLASS_ROGUE].size()] = Races::RACE_UNDEAD;
+
+	hordeRaces[CLASS_PRIEST][hordeRaces[CLASS_PRIEST].size()] = RACE_TROLL;
+	hordeRaces[CLASS_PRIEST][hordeRaces[CLASS_PRIEST].size()] = Races::RACE_UNDEAD;
+
+	hordeRaces[CLASS_MAGE][hordeRaces[CLASS_MAGE].size()] = RACE_UNDEAD;
+	hordeRaces[CLASS_MAGE][hordeRaces[CLASS_MAGE].size()] = RACE_TROLL;
+
+	hordeRaces[CLASS_WARLOCK][hordeRaces[CLASS_WARLOCK].size()] = RACE_UNDEAD;
+	hordeRaces[CLASS_WARLOCK][hordeRaces[CLASS_WARLOCK].size()] = RACE_ORC;
+
+	hordeRaces[CLASS_SHAMAN][hordeRaces[CLASS_SHAMAN].size()] = RACE_ORC;
+	hordeRaces[CLASS_SHAMAN][hordeRaces[CLASS_SHAMAN].size()] = RACE_TAUREN;
+	hordeRaces[CLASS_SHAMAN][hordeRaces[CLASS_SHAMAN].size()] = RACE_TROLL;
+
+	hordeRaces[CLASS_HUNTER][hordeRaces[CLASS_HUNTER].size()] = RACE_ORC;
+	hordeRaces[CLASS_HUNTER][hordeRaces[CLASS_HUNTER].size()] = RACE_TAUREN;
+	hordeRaces[CLASS_HUNTER][hordeRaces[CLASS_HUNTER].size()] = RACE_TROLL;
+
+	hordeRaces[CLASS_DRUID][hordeRaces[CLASS_DRUID].size()] = RACE_TAUREN;
 
 	characterTalentTabNameMap.clear();
 	characterTalentTabNameMap[Classes::CLASS_WARRIOR][0] = "Arms";
@@ -391,15 +448,44 @@ uint32 RobotManager::GetCharacterRace(uint32 pmCharacterID)
 	return result;
 }
 
-uint32 RobotManager::CreateRobotCharacter(uint32 pmAccountID)
+uint32 RobotManager::CreateRobotCharacter(uint32 pmAccountID, uint16 pmCampType)
 {
-	uint32  targetClass = Classes::CLASS_SHAMAN;
+	uint32  targetClass = Classes::CLASS_PALADIN;
 	if (urand(0, 1) == 0)
 	{
 		targetClass = Classes::CLASS_MAGE;
 	}
-	uint32 raceIndex = urand(0, availableRaces[targetClass].size() - 1);
-	uint32 targetRace = availableRaces[targetClass][raceIndex];
+	if (pmCampType == RobotCampType::RobotCampType_Alliance)
+	{
+		if (targetClass == Classes::CLASS_SHAMAN)
+		{
+			targetClass = Classes::CLASS_PALADIN;
+		}
+	}
+	else if (pmCampType == RobotCampType::RobotCampType_Horde)
+	{
+		if (targetClass == Classes::CLASS_PALADIN)
+		{
+			targetClass = Classes::CLASS_SHAMAN;
+		}
+	}
+	uint32 raceIndex = 0;
+	uint32 targetRace = 0;
+	if (pmCampType == RobotCampType::RobotCampType_Alliance)
+	{
+		raceIndex = urand(0, allianceRaces[targetClass].size() - 1);
+		targetRace = allianceRaces[targetClass][raceIndex];
+	}
+	else if (pmCampType == RobotCampType::RobotCampType_Horde)
+	{
+		raceIndex = urand(0, hordeRaces[targetClass].size() - 1);
+		targetRace = hordeRaces[targetClass][raceIndex];
+	}
+	else
+	{
+		raceIndex = urand(0, availableRaces[targetClass].size() - 1);
+		targetRace = availableRaces[targetClass][raceIndex];
+	}
 
 	return CreateRobotCharacter(pmAccountID, targetClass, targetRace);
 }
@@ -1021,6 +1107,8 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 		{
 			if (myGroup->GetLeaderGuid() == pmPlayer->GetObjectGuid())
 			{
+				bool paladinCrusader = false;
+
 				bool paladinAura_concentration = false;
 				bool paladinAura_devotion = false;
 				bool paladinAura_retribution = false;
@@ -1061,6 +1149,14 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 							{
 								if (Script_Paladin* sp = (Script_Paladin*)rs->sb)
 								{
+									if (member->groupRole == GroupRole::GroupRole_DPS)
+									{
+										if (!paladinCrusader)
+										{
+											sp->crusader = true;
+											paladinCrusader = true;
+										}
+									}
 									switch (sp->blessingType)
 									{
 									case PaladinBlessingType::PaladinBlessingType_Kings:
@@ -3478,6 +3574,8 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 						}
 						if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
 						{
+							std::ostringstream replyStream;
+							bool takeAction = true;
 							if (commandVector.size() > 1)
 							{
 								std::string cmdDistanceStr = commandVector.at(1);
@@ -3485,39 +3583,36 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 								if (cmdDistance == 0.0f)
 								{
 									rs->following = false;
-									WhisperTo(member, "Stop following", Language::LANG_UNIVERSAL, pmSender);
-									continue;
+									replyStream << "Stop following";
+									takeAction = false;
 								}
 								else if (cmdDistance >= FOLLOW_MIN_DISTANCE && cmdDistance <= FOLLOW_MAX_DISTANCE)
 								{
 									rs->followDistance = cmdDistance;
-									std::ostringstream replyStream;
-									replyStream << "Following " << rs->followDistance;
-									WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
+									replyStream << "Distance updated";
 								}
 								else
 								{
-									WhisperTo(member, "Distance is not valid", Language::LANG_UNIVERSAL, pmSender);
-									break;
+									replyStream << "Distance is not valid";
+									takeAction = false;
 								}
 							}
-							rs->sb->ClearTarget();
-							rs->eatDelay = 0;
-							rs->drinkDelay = 0;
-							rs->staying = false;
-							rs->holding = false;
-							rs->following = true;
-							if (member->IsAlive())
+							if (takeAction)
 							{
-								member->AttackStop();
-								member->CastStop();
-								member->StopMoving();
-								member->GetMotionMaster()->Clear();
-								rs->sb->ChooseTarget(pmSender);
-								rs->sb->rm->Chase(pmSender, rs->followDistance);
+								rs->eatDelay = 0;
+								rs->drinkDelay = 0;
+								rs->staying = false;
+								rs->holding = false;
+								rs->following = true;
+								if (rs->Follow())
+								{
+									replyStream << "Following " << rs->followDistance;
+								}
+								else
+								{
+									replyStream << "can not follow";
+								}
 							}
-							std::ostringstream replyStream;
-							replyStream << "Following " << rs->followDistance;
 							WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
 						}
 					}
@@ -3641,38 +3736,23 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 										continue;
 									}
 								}
-								if (member->IsAlive())
+								if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
 								{
-									if (member->IsValidAttackTarget(target))
+									rs->staying = false;
+									if (rs->Engage(target))
 									{
-										if (member->GetDistance(target) < ATTACK_RANGE_LIMIT)
+										myGroup->SetTargetIcon(4, target->GetObjectGuid());
+										rs->engageTarget = target;
+										int engageDelay = 5000;
+										if (commandVector.size() > 1)
 										{
-											member->SetFacingToObject(target);
-											member->AttackStop();
-											member->StopMoving();
-											member->GetMotionMaster()->Clear();
-											if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
-											{
-												rs->staying = false;
-												rs->sb->ClearTarget();
-												rs->sb->ChooseTarget(target);
-												if (rs->Engage(target))
-												{
-													myGroup->ClearTargetIcon(target->GetObjectGuid());
-													rs->engageTarget = target;
-													int engageDelay = 5000;
-													if (commandVector.size() > 1)
-													{
-														std::string checkStr = commandVector.at(1);
-														engageDelay = atoi(checkStr.c_str());
-													}
-													rs->engageDelay = engageDelay;
-													std::ostringstream replyStream;
-													replyStream << "Try to engage " << target->GetName();
-													WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
-												}
-											}
+											std::string checkStr = commandVector.at(1);
+											engageDelay = atoi(checkStr.c_str());
 										}
+										rs->engageDelay = engageDelay;
+										std::ostringstream replyStream;
+										replyStream << "Try to engage " << target->GetName();
+										WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
 									}
 								}
 							}
@@ -3709,25 +3789,18 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 							}
 						}
 						std::ostringstream replyStream;
-						if (member->IsAlive())
+						if (Strategy_Base* rs = member->rai->strategyMap[myGroup->groupStrategyIndex])
 						{
-							if (Strategy_Base* rs = member->rai->strategyMap[myGroup->groupStrategyIndex])
+							if (rs->sb->Eat())
 							{
-								if (rs->sb->Eat())
-								{
-									rs->eatDelay = DEFAULT_REST_DELAY;
-									rs->drinkDelay = 1000;
-									replyStream << "Resting";
-								}
-								else
-								{
-									replyStream << "Can not rest";
-								}
+								rs->eatDelay = DEFAULT_REST_DELAY;
+								rs->drinkDelay = 1000;
+								replyStream << "Resting";
 							}
-						}
-						else
-						{
-							replyStream << "I am dead";
+							else
+							{
+								replyStream << "Can not rest";
+							}
 						}
 						WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
 					}
@@ -3786,41 +3859,134 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 								continue;
 							}
 						}
-						std::ostringstream replyStream;
-						if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
+						std::string memberType = "all";
+						if (commandVector.size() > 1)
 						{
-							if (rs->moveDelay > 0 || rs->teleportAssembleDelay > 0)
+							memberType = commandVector.at(1);
+						}
+						bool takeAction = false;
+						if (memberType == "all")
+						{
+							takeAction = true;
+						}
+						else	if (memberType == "melee")
+						{
+							if (member->GetClass() == Classes::CLASS_WARRIOR || member->GetClass() == Classes::CLASS_ROGUE)
 							{
-								replyStream << "I am on the way";
+								takeAction = true;
 							}
-							else
+							else	if (member->GetClass() == Classes::CLASS_SHAMAN)
 							{
-								if (member->IsAlive())
+								if (member->groupRole == GroupRole::GroupRole_DPS)
 								{
-									if (member->GetDistance3dToCenter(pmSender) < ATTACK_RANGE_LIMIT)
+									if (member->GetMaxTalentCountTab() == 1)
 									{
-										member->GetMotionMaster()->Clear();
-										member->StopMoving();
-										rs->eatDelay = 0;
-										rs->drinkDelay = 0;
-										rs->sb->rm->MovePosition(pmSender->GetPosition());
-										replyStream << "We are close, I will move to you";
-										rs->moveDelay = 3000;
-									}
-									else
-									{
-										rs->teleportAssembleDelay = 1 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS;
-										replyStream << "I will join you in 1 minute";
+										takeAction = true;
 									}
 								}
-								else
+							}
+							else	if (member->GetClass() == Classes::CLASS_PALADIN)
+							{
+								if (member->groupRole == GroupRole::GroupRole_Tank || member->groupRole == GroupRole::GroupRole_DPS)
 								{
-									rs->teleportAssembleDelay = 2 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS;
-									replyStream << "I will revive and join you in 2 minutes";
+									takeAction = true;
+								}
+							}
+							else	if (member->GetClass() == Classes::CLASS_DRUID)
+							{
+								if (member->groupRole == GroupRole::GroupRole_Tank)
+								{
+									takeAction = true;
+								}
+								else if (member->groupRole == GroupRole::GroupRole_DPS)
+								{
+									if (member->GetMaxTalentCountTab() == 1)
+									{
+										takeAction = true;
+									}
 								}
 							}
 						}
-						WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
+						else	if (memberType == "range")
+						{
+							if (member->GetClass() == Classes::CLASS_HUNTER || member->GetClass() == Classes::CLASS_PRIEST || member->GetClass() == Classes::CLASS_WARLOCK || member->GetClass() == Classes::CLASS_MAGE)
+							{
+								takeAction = true;
+							}
+							else	if (member->GetClass() == Classes::CLASS_SHAMAN)
+							{
+								if (member->groupRole == GroupRole::GroupRole_DPS)
+								{
+									if (member->GetMaxTalentCountTab() != 1)
+									{
+										takeAction = true;
+									}
+								}
+								else if (member->groupRole == GroupRole::GroupRole_Healer)
+								{
+									takeAction = true;
+								}
+							}
+							else	if (member->GetClass() == Classes::CLASS_PALADIN)
+							{
+								if (member->groupRole == GroupRole::GroupRole_Healer)
+								{
+									takeAction = true;
+								}
+							}
+							else	if (member->GetClass() == Classes::CLASS_DRUID)
+							{
+								if (member->groupRole == GroupRole::GroupRole_DPS)
+								{
+									if (member->GetMaxTalentCountTab() != 1)
+									{
+										takeAction = true;
+									}
+								}
+								else if (member->groupRole == GroupRole::GroupRole_Healer)
+								{
+									takeAction = true;
+								}
+							}
+						}
+						if (takeAction)
+						{
+							std::ostringstream replyStream;
+							if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
+							{
+								if (rs->moveDelay > 0 || rs->teleportAssembleDelay > 0)
+								{
+									replyStream << "I am on the way";
+								}
+								else
+								{
+									if (member->IsAlive())
+									{
+										if (member->GetDistance(pmSender) < ATTACK_RANGE_LIMIT)
+										{
+											member->GetMotionMaster()->Clear();
+											member->StopMoving();
+											rs->eatDelay = 0;
+											rs->drinkDelay = 0;
+											rs->sb->rm->MovePosition(pmSender->GetPosition());
+											replyStream << "We are close, I will move to you";
+											rs->moveDelay = 3000;
+										}
+										else
+										{
+											rs->teleportAssembleDelay = 1 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS;
+											replyStream << "I will join you in 1 minute";
+										}
+									}
+									else
+									{
+										rs->teleportAssembleDelay = 2 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS;
+										replyStream << "I will revive and join you in 2 minutes";
+									}
+								}
+							}
+							WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
+						}
 					}
 				}
 			}
@@ -3856,36 +4022,30 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 										continue;
 									}
 								}
-								if (member->IsAlive())
+								if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
 								{
-									if (member->IsValidAttackTarget(target))
+									if (member->groupRole == GroupRole::GroupRole_Tank)
 									{
-										if (member->GetDistance(target) < ATTACK_RANGE_LIMIT)
+										if (rs->Tank(target))
 										{
-											member->SetFacingToObject(target);
-											member->AttackStop();
-											member->StopMoving();
-											member->GetMotionMaster()->Clear();
-											if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
+											myGroup->SetTargetIcon(4, target->GetObjectGuid());
+											rs->staying = false;
+											rs->engageTarget = target;
+											int engageDelay = 5000;
+											if (commandVector.size() > 1)
 											{
-												if (rs->Tank(target))
-												{
-													myGroup->ClearTargetIcon(target->GetObjectGuid());
-													rs->staying = false;
-													rs->engageTarget = target;
-													int engageDelay = 5000;
-													if (commandVector.size() > 1)
-													{
-														std::string checkStr = commandVector.at(1);
-														engageDelay = atoi(checkStr.c_str());
-													}
-													rs->engageDelay = engageDelay;
-													std::ostringstream replyStream;
-													replyStream << "Try to tank " << target->GetName();
-													WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
-												}
+												std::string checkStr = commandVector.at(1);
+												engageDelay = atoi(checkStr.c_str());
 											}
+											rs->engageDelay = engageDelay;
+											std::ostringstream replyStream;
+											replyStream << "Try to tank " << target->GetName();
+											WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
 										}
+									}
+									else
+									{
+										rs->staying = false;
 									}
 								}
 							}
@@ -3925,35 +4085,22 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 										continue;
 									}
 								}
-								if (member->IsAlive())
+								if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
 								{
-									if (member->IsValidAttackTarget(target))
+									if (rs->Pull(target))
 									{
-										if (member->GetDistance3dToCenter(target) < ATTACK_RANGE_LIMIT)
+										rs->staying = false;
+										rs->engageTarget = target;
+										int pullDelay = 5000;
+										if (commandVector.size() > 1)
 										{
-											member->SetFacingToObject(target);
-											member->AttackStop();
-											member->StopMoving();
-											member->GetMotionMaster()->Clear();
-											if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
-											{
-												if (rs->Pull(target))
-												{
-													rs->staying = false;
-													rs->engageTarget = target;
-													int pullDelay = 5000;
-													if (commandVector.size() > 1)
-													{
-														std::string checkStr = commandVector.at(1);
-														pullDelay = atoi(checkStr.c_str());
-													}
-													rs->pullDelay = pullDelay;
-													std::ostringstream replyStream;
-													replyStream << "Try to pull " << target->GetName();
-													WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
-												}
-											}
+											std::string checkStr = commandVector.at(1);
+											pullDelay = atoi(checkStr.c_str());
 										}
+										rs->pullDelay = pullDelay;
+										std::ostringstream replyStream;
+										replyStream << "Try to pull " << target->GetName();
+										WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
 									}
 								}
 							}
@@ -4561,6 +4708,66 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 							else
 							{
 								replyStream << "Auto cure is off";
+							}
+						}
+						WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
+					}
+				}
+			}
+		}
+	}
+	else if (commandName == "aoe")
+	{
+		if (Group* myGroup = pmSender->GetGroup())
+		{
+			if (myGroup->GetLeaderGuid() == pmSender->GetObjectGuid())
+			{
+				for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
+				{
+					Player* member = groupRef->getSource();
+					if (member)
+					{
+						if (!member->GetSession()->isRobotSession)
+						{
+							continue;
+						}
+						else if (!member->rai)
+						{
+							continue;
+						}
+						if (pmReceiver)
+						{
+							if (pmReceiver->GetGUID() != member->GetGUID())
+							{
+								continue;
+							}
+						}
+						std::ostringstream replyStream;
+						if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
+						{
+							if (commandVector.size() > 1)
+							{
+								std::string cureCMD = commandVector.at(1);
+								if (cureCMD == "on")
+								{
+									rs->aoe = true;
+								}
+								else if (cureCMD == "off")
+								{
+									rs->aoe = false;
+								}
+								else
+								{
+									replyStream << "Unknown state";
+								}
+							}
+							if (rs->cure)
+							{
+								replyStream << "AOE is on";
+							}
+							else
+							{
+								replyStream << "AOE is off";
 							}
 						}
 						WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
@@ -5616,6 +5823,7 @@ bool RobotManager::InitializeCharacter(Player* pmTargetPlayer, uint32 pmTargetLe
 		}
 		case Classes::CLASS_PALADIN:
 		{
+			pmTargetPlayer->LearnSpell(198, true);
 			pmTargetPlayer->LearnSpell(199, true);
 			//pmTargetPlayer->SetSkill(160, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // mace 2 
 			break;
@@ -5703,7 +5911,7 @@ bool RobotManager::InitializeCharacter(Player* pmTargetPlayer, uint32 pmTargetLe
 		}
 		else if (pmTargetPlayer->GetClass() == Classes::CLASS_PALADIN)
 		{
-			specialty = 2;
+			specialty = urand(0, 2);
 		}
 		else if (pmTargetPlayer->GetClass() == Classes::CLASS_DRUID)
 		{
@@ -5713,70 +5921,315 @@ bool RobotManager::InitializeCharacter(Player* pmTargetPlayer, uint32 pmTargetLe
 		{
 			specialty = 1;
 		}
-
-		uint32 classMask = pmTargetPlayer->GetClassMask();
-		std::map<uint32, std::vector<TalentEntry const*> > talentsMap;
-		for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
+		bool specialHandled = false;
+		if (pmTargetPlayer->GetClass() == Classes::CLASS_PALADIN)
 		{
-			TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
-			if (!talentInfo)
-				continue;
-
-			TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
-			if (!talentTabInfo || talentTabInfo->tabpage != specialty)
-				continue;
-
-			if ((classMask & talentTabInfo->ClassMask) == 0)
-				continue;
-
-			talentsMap[talentInfo->Row].push_back(talentInfo);
-		}
-		for (std::map<uint32, std::vector<TalentEntry const*> >::iterator i = talentsMap.begin(); i != talentsMap.end(); ++i)
-		{
-			std::vector<TalentEntry const*> eachRowTalents = i->second;
-			if (eachRowTalents.empty())
+			if (specialty == 1)
 			{
-				sLog.outError("%s: No spells for talent row %d", pmTargetPlayer->GetName(), i->first);
-				continue;
-			}
-			for (std::vector<TalentEntry const*>::iterator it = eachRowTalents.begin(); it != eachRowTalents.end(); it++)
-			{
+				specialHandled = true;
+				uint32 classMask = pmTargetPlayer->GetClassMask();
+				// protection 1 
 				freePoints = pmTargetPlayer->GetFreeTalentPoints();
 				if (freePoints > 0)
 				{
-					if (const TalentEntry* eachTE = *it)
+					for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
 					{
-						uint8 maxRank = 4;
-						if (eachTE->RankID[4] > 0)
+						TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
+						if (talentInfo)
 						{
-							maxRank = 4;
+							TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
+							if (talentTabInfo)
+							{
+								if (talentTabInfo->tabpage == 1)
+								{
+									if ((classMask & talentTabInfo->ClassMask) != 0)
+									{
+										if (talentInfo->Row == 0)
+										{
+											// Improved Devotion Aura 
+											if (talentInfo->RankID[0] == 20138)
+											{
+												pmTargetPlayer->LearnTalent(talentInfo->TalentID, 0);
+											}
+										}
+									}
+								}
+							}
 						}
-						else if (eachTE->RankID[3] > 0)
+					}
+				}
+				// holy to Consecration
+				// Divine Strength 
+				for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
+				{
+					TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
+					if (talentInfo)
+					{
+						TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
+						if (talentTabInfo)
 						{
-							maxRank = 3;
+							if (talentTabInfo->tabpage == 0)
+							{
+								if ((classMask & talentTabInfo->ClassMask) != 0)
+								{
+									if (talentInfo->Row == 0)
+									{
+										freePoints = pmTargetPlayer->GetFreeTalentPoints();
+										if (freePoints > 0)
+										{
+											if (talentInfo->RankID[0] == 20262)
+											{
+												uint8 maxRank = 4;
+												if (talentInfo->RankID[4] > 0)
+												{
+													maxRank = 4;
+												}
+												else if (talentInfo->RankID[3] > 0)
+												{
+													maxRank = 3;
+												}
+												else if (talentInfo->RankID[2] > 0)
+												{
+													maxRank = 2;
+												}
+												else if (talentInfo->RankID[1] > 0)
+												{
+													maxRank = 1;
+												}
+												else
+												{
+													maxRank = 0;
+												}
+												if (maxRank > freePoints - 1)
+												{
+													maxRank = freePoints - 1;
+												}
+												pmTargetPlayer->LearnTalent(talentInfo->TalentID, maxRank);
+											}
+										}
+									}
+								}
+							}
 						}
-						else if (eachTE->RankID[2] > 0)
+					}
+				}
+				// Improved Seal of Righteousness 
+				for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
+				{
+					TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
+					if (talentInfo)
+					{
+						TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
+						if (talentTabInfo)
 						{
-							maxRank = 2;
+							if (talentTabInfo->tabpage == 0)
+							{
+								if ((classMask & talentTabInfo->ClassMask) != 0)
+								{
+									if (talentInfo->Row == 1)
+									{
+										freePoints = pmTargetPlayer->GetFreeTalentPoints();
+										if (freePoints > 0)
+										{
+											if (talentInfo->RankID[0] == 20224)
+											{
+												uint8 maxRank = 4;
+												if (talentInfo->RankID[4] > 0)
+												{
+													maxRank = 4;
+												}
+												else if (talentInfo->RankID[3] > 0)
+												{
+													maxRank = 3;
+												}
+												else if (talentInfo->RankID[2] > 0)
+												{
+													maxRank = 2;
+												}
+												else if (talentInfo->RankID[1] > 0)
+												{
+													maxRank = 1;
+												}
+												else
+												{
+													maxRank = 0;
+												}
+												if (maxRank > freePoints - 1)
+												{
+													maxRank = freePoints - 1;
+												}
+												pmTargetPlayer->LearnTalent(talentInfo->TalentID, maxRank);
+											}
+										}
+									}
+								}
+							}
 						}
-						else if (eachTE->RankID[1] > 0)
+					}
+				}
+				// Consecration
+				for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
+				{
+					TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
+					if (talentInfo)
+					{
+						TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
+						if (talentTabInfo)
 						{
-							maxRank = 1;
+							if (talentTabInfo->tabpage == 0)
+							{
+								if ((classMask & talentTabInfo->ClassMask) != 0)
+								{
+									if (talentInfo->Row == 2)
+									{
+										freePoints = pmTargetPlayer->GetFreeTalentPoints();
+										if (freePoints > 0)
+										{
+											if (talentInfo->RankID[0] == 26573)
+											{
+												pmTargetPlayer->LearnTalent(talentInfo->TalentID, 0);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				// protection remained 
+				std::map<uint32, std::vector<TalentEntry const*> > talentsMap;
+				for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
+				{
+					TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
+					if (!talentInfo)
+						continue;
+
+					TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
+					if (!talentTabInfo || talentTabInfo->tabpage != 1)
+						continue;
+
+					if ((classMask & talentTabInfo->ClassMask) == 0)
+						continue;
+
+					talentsMap[talentInfo->Row].push_back(talentInfo);
+				}
+				for (std::map<uint32, std::vector<TalentEntry const*> >::iterator i = talentsMap.begin(); i != talentsMap.end(); ++i)
+				{
+					std::vector<TalentEntry const*> eachRowTalents = i->second;
+					if (eachRowTalents.empty())
+					{
+						sLog.outError("%s: No spells for talent row %d", pmTargetPlayer->GetName(), i->first);
+						continue;
+					}
+					for (std::vector<TalentEntry const*>::iterator it = eachRowTalents.begin(); it != eachRowTalents.end(); it++)
+					{
+						freePoints = pmTargetPlayer->GetFreeTalentPoints();
+						if (freePoints > 0)
+						{
+							if (const TalentEntry* eachTE = *it)
+							{
+								uint8 maxRank = 4;
+								if (eachTE->RankID[4] > 0)
+								{
+									maxRank = 4;
+								}
+								else if (eachTE->RankID[3] > 0)
+								{
+									maxRank = 3;
+								}
+								else if (eachTE->RankID[2] > 0)
+								{
+									maxRank = 2;
+								}
+								else if (eachTE->RankID[1] > 0)
+								{
+									maxRank = 1;
+								}
+								else
+								{
+									maxRank = 0;
+								}
+								if (maxRank > freePoints - 1)
+								{
+									maxRank = freePoints - 1;
+								}
+								pmTargetPlayer->LearnTalent(eachTE->TalentID, maxRank);
+							}
 						}
 						else
 						{
-							maxRank = 0;
+							break;
 						}
-						if (maxRank > freePoints - 1)
-						{
-							maxRank = freePoints - 1;
-						}
-						pmTargetPlayer->LearnTalent(eachTE->TalentID, maxRank);
 					}
 				}
-				else
+			}
+		}
+		if (!specialHandled)
+		{
+			uint32 classMask = pmTargetPlayer->GetClassMask();
+			std::map<uint32, std::vector<TalentEntry const*> > talentsMap;
+			for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
+			{
+				TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
+				if (!talentInfo)
+					continue;
+
+				TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
+				if (!talentTabInfo || talentTabInfo->tabpage != specialty)
+					continue;
+
+				if ((classMask & talentTabInfo->ClassMask) == 0)
+					continue;
+
+				talentsMap[talentInfo->Row].push_back(talentInfo);
+			}
+			for (std::map<uint32, std::vector<TalentEntry const*> >::iterator i = talentsMap.begin(); i != talentsMap.end(); ++i)
+			{
+				std::vector<TalentEntry const*> eachRowTalents = i->second;
+				if (eachRowTalents.empty())
 				{
-					break;
+					sLog.outError("%s: No spells for talent row %d", pmTargetPlayer->GetName(), i->first);
+					continue;
+				}
+				for (std::vector<TalentEntry const*>::iterator it = eachRowTalents.begin(); it != eachRowTalents.end(); it++)
+				{
+					freePoints = pmTargetPlayer->GetFreeTalentPoints();
+					if (freePoints > 0)
+					{
+						if (const TalentEntry* eachTE = *it)
+						{
+							uint8 maxRank = 4;
+							if (eachTE->RankID[4] > 0)
+							{
+								maxRank = 4;
+							}
+							else if (eachTE->RankID[3] > 0)
+							{
+								maxRank = 3;
+							}
+							else if (eachTE->RankID[2] > 0)
+							{
+								maxRank = 2;
+							}
+							else if (eachTE->RankID[1] > 0)
+							{
+								maxRank = 1;
+							}
+							else
+							{
+								maxRank = 0;
+							}
+							if (maxRank > freePoints - 1)
+							{
+								maxRank = freePoints - 1;
+							}
+							pmTargetPlayer->LearnTalent(eachTE->TalentID, maxRank);
+						}
+					}
+					else
+					{
+						break;
+					}
 				}
 			}
 		}
@@ -6008,7 +6461,24 @@ void RobotManager::InitializeEquipments(Player* pmTargetPlayer, bool pmReset)
 			}
 			case Classes::CLASS_PALADIN:
 			{
-				weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MACE2;
+				bool dps = true;
+				if (pmTargetPlayer->GetTalentCount(1) > 0)
+				{
+					dps = false;
+				}
+				else if (pmTargetPlayer->GetMaxTalentCountTab() == 0)
+				{
+					dps = false;
+				}
+				if (dps)
+				{
+					weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MACE2;
+				}
+				else
+				{
+					weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MACE;
+					weaponSubClass_oh = ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_SHIELD;
+				}
 				break;
 			}
 			case Classes::CLASS_HUNTER:

@@ -476,7 +476,7 @@ bool Script_Druid::DPS_Common(Unit* pmTarget, bool pmChase)
 	return DPS_Balance(pmTarget, pmChase);
 }
 
-bool Script_Druid::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Druid::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	if (!me)
 	{
@@ -498,26 +498,26 @@ bool Script_Druid::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
 	{
 	case 0:
 	{
-		return Tank_Feral(pmTarget, pmChase, pmSingle);
+		return Tank_Feral(pmTarget, pmChase, pmAOE);
 	}
 	case 1:
 	{
-		return Tank_Feral(pmTarget, pmChase, pmSingle);
+		return Tank_Feral(pmTarget, pmChase, pmAOE);
 	}
 	case 2:
 	{
-		return Tank_Feral(pmTarget, pmChase, pmSingle);
+		return Tank_Feral(pmTarget, pmChase, pmAOE);
 	}
 	default:
 	{
-		return Tank_Feral(pmTarget, pmChase, pmSingle);
+		return Tank_Feral(pmTarget, pmChase, pmAOE);
 	}
 	}
 
 	return false;
 }
 
-bool Script_Druid::Tank_Feral(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Druid::Tank_Feral(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	if (!pmTarget)
 	{
@@ -614,13 +614,10 @@ bool Script_Druid::Tank_Feral(Unit* pmTarget, bool pmChase, bool pmSingle)
 	{
 		if (demoralizingRoarDelay <= 0)
 		{
-			if (!pmSingle)
+			if (CastSpell(pmTarget, "Demoralizing Roar", MELEE_MAX_DISTANCE, true))
 			{
-				if (CastSpell(pmTarget, "Demoralizing Roar", MELEE_MAX_DISTANCE, true))
-				{
-					demoralizingRoarDelay = 20 * TimeConstants::IN_MILLISECONDS;
-					return true;
-				}
+				demoralizingRoarDelay = 20 * TimeConstants::IN_MILLISECONDS;
+				return true;
 			}
 		}
 		if (pmTarget->IsNonMeleeSpellCasted(false))
@@ -649,18 +646,18 @@ bool Script_Druid::Tank_Feral(Unit* pmTarget, bool pmChase, bool pmSingle)
 			validAttackerCount++;
 		}
 	}
-	if (!pmSingle)
+	if (groupTaunt && validAttackerCount > 3)
 	{
-		if (groupTaunt && validAttackerCount > 3)
+		if (rage > 150)
 		{
-			if (rage > 150)
+			if (CastSpell(pmTarget, "Challenging Roar", MELEE_MAX_DISTANCE))
 			{
-				if (CastSpell(pmTarget, "Challenging Roar", MELEE_MAX_DISTANCE))
-				{
-					return true;
-				}
+				return true;
 			}
 		}
+	}
+	if (pmAOE)
+	{
 		if (validAttackerCount > 1)
 		{
 			if (rage > 150)

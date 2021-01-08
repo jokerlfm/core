@@ -18,7 +18,7 @@ RobotMovement::RobotMovement(Player* pmMe)
 	chaseTarget = NULL;
 	activeMovementType = RobotMovementType::RobotMovementType_None;
 	chaseDistanceMin = CONTACT_DISTANCE;
-	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;	
+	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;
 	limitDelay = 0;
 }
 
@@ -27,7 +27,7 @@ void RobotMovement::ResetMovement()
 	chaseTarget = NULL;
 	activeMovementType = RobotMovementType::RobotMovementType_None;
 	chaseDistanceMin = CONTACT_DISTANCE;
-	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;	
+	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;
 	limitDelay = 0;
 	if (me)
 	{
@@ -67,7 +67,7 @@ bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float p
 	{
 		return false;
 	}
-	float unitTargetDistance = me->GetDistance3dToCenter(pmChaseTarget);
+	float unitTargetDistance = me->GetDistance(pmChaseTarget);
 	if (unitTargetDistance > VISIBILITY_DISTANCE_LARGE)
 	{
 		return false;
@@ -82,6 +82,8 @@ bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float p
 			}
 		}
 	}
+	chaseDistanceMax = pmChaseDistanceMax;
+	chaseDistanceMin = pmChaseDistanceMin;
 	if (activeMovementType == RobotMovementType::RobotMovementType_Chase)
 	{
 		if (chaseTarget)
@@ -98,8 +100,6 @@ bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float p
 		me->GetMotionMaster()->Clear();
 	}
 	chaseTarget = pmChaseTarget;
-	chaseDistanceMax = pmChaseDistanceMax;
-	chaseDistanceMin = pmChaseDistanceMin;
 	activeMovementType = RobotMovementType::RobotMovementType_Chase;
 
 	if (me->GetStandState() != UnitStandStateType::UNIT_STAND_STATE_STAND)
@@ -242,7 +242,7 @@ void RobotMovement::Update(uint32 pmDiff)
 	}
 	case RobotMovementType::RobotMovementType_Point:
 	{
-		float distance = me->GetDistance3dToCenter(pointTarget);
+		float distance = me->GetDistance(pointTarget);
 		if (distance > VISIBILITY_DISTANCE_LARGE || distance < CONTACT_DISTANCE)
 		{
 			ResetMovement();
@@ -284,7 +284,7 @@ void RobotMovement::Update(uint32 pmDiff)
 				}
 			}
 		}
-		float unitTargetDistance = me->GetDistance3dToCenter(chaseTarget);
+		float unitTargetDistance = me->GetDistance(chaseTarget);
 		if (unitTargetDistance > VISIBILITY_DISTANCE_LARGE)
 		{
 			ResetMovement();
@@ -423,12 +423,12 @@ void Script_Base::Update(uint32 pmDiff)
 	return;
 }
 
-bool Script_Base::DPS(Unit* pmTarget, bool pmChase)
+bool Script_Base::DPS(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	return false;
 }
 
-bool Script_Base::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Base::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	return false;
 }
@@ -549,13 +549,13 @@ void Script_Base::IdentifyCharacterSpells()
 	}
 	case Classes::CLASS_PALADIN:
 	{
-		if (characterTalentTab == 0)
-		{
-			characterType = 2;
-		}
-		else if (characterTalentTab == 1)
+		if (me->GetTalentCount(1) > 0)
 		{
 			characterType = 1;
+		}
+		else if (characterTalentTab == 0)
+		{
+			characterType = 2;
 		}
 		break;
 	}
@@ -983,6 +983,10 @@ bool Script_Base::Eat()
 	{
 		return false;
 	}
+	if (!me->IsAlive())
+	{
+		return false;
+	}
 	if (me->IsInCombat())
 	{
 		return false;
@@ -1035,6 +1039,10 @@ bool Script_Base::Drink()
 	bool result = false;
 
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
 	{
 		return false;
 	}

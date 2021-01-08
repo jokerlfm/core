@@ -14,7 +14,7 @@ bool Script_Mage::Heal(Unit* pmTarget, bool pmCure)
 	return false;
 }
 
-bool Script_Mage::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Mage::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	return false;
 }
@@ -22,6 +22,10 @@ bool Script_Mage::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
 bool Script_Mage::DPS(Unit* pmTarget, bool pmChase)
 {
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
 	{
 		return false;
 	}
@@ -77,7 +81,7 @@ bool Script_Mage::Assist()
 							uint32 duration = sRobotManager->GetAuraDuration(assistTarget, "Polymorph");
 							if (duration < 3000)
 							{
-								if (me->GetDistance3dToCenter(assistTarget) < MAGE_RANGE_DISTANCE)
+								if (me->GetDistance(assistTarget) < MAGE_RANGE_DISTANCE)
 								{
 									CastSpell(assistTarget, "Polymorph", MAGE_RANGE_DISTANCE);
 									return true;

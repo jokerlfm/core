@@ -25,7 +25,7 @@ public:
     Script_Shaman(Player* pmMe);    
     bool DPS(Unit* pmTarget, bool pmChase = true);
     bool Pull(Unit* pmTarget);
-    bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = false);
+    bool Tank(Unit* pmTarget, bool pmChase, bool pmAOE = false);
     bool Heal(Unit* pmTarget, bool pmCure = true);    
     bool Buff(Unit* pmTarget, bool pmCure = true);
     bool Assist();

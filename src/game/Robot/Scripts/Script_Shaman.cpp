@@ -27,7 +27,7 @@ bool Script_Shaman::Assist()
 	{
 		if (Unit* myVictim = me->GetVictim())
 		{
-			float victimDistance = me->GetDistance3dToCenter(myVictim);
+			float victimDistance = me->GetDistance(myVictim);
 			if (victimDistance < INTERACTION_DISTANCE)
 			{
 				doTotem = true;
@@ -46,7 +46,7 @@ bool Script_Shaman::Assist()
 					{
 						if (member->groupRole == GroupRole::GroupRole_Tank)
 						{
-							float tankDistance = me->GetDistance3dToCenter(member);
+							float tankDistance = me->GetDistance(member);
 							if (tankDistance < FOLLOW_NORMAL_DISTANCE)
 							{
 								doTotem = true;
@@ -119,9 +119,17 @@ bool Script_Shaman::Assist()
 	return false;
 }
 
-bool Script_Shaman::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Shaman::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
+	{
+		return false;
+	}
+	if (!me->IsValidAttackTarget(pmTarget))
 	{
 		return false;
 	}
@@ -129,15 +137,7 @@ bool Script_Shaman::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
 	{
 		return false;
 	}
-	else if (!pmTarget->IsAlive())
-	{
-		return false;
-	}
-	if (!me)
-	{
-		return false;
-	}
-	else if (!me->IsValidAttackTarget(pmTarget))
+	if (!pmTarget->IsAlive())
 	{
 		return false;
 	}
@@ -171,7 +171,7 @@ bool Script_Shaman::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
 		{
 			return true;
 		}
-		if (!pmSingle)
+		if (pmAOE)
 		{
 			if (CastSpell(me, "Fire Nova Totem", SHAMAN_RANGE_DISTANCE))
 			{
@@ -196,7 +196,11 @@ bool Script_Shaman::Heal(Unit* pmTarget, bool pmCure)
 	{
 		return false;
 	}
-	if (me->GetDistance3dToCenter(pmTarget) > SHAMAN_HEAL_DISTANCE)
+	if (!me->IsAlive())
+	{
+		return false;
+	}
+	if (me->GetDistance(pmTarget) > SHAMAN_HEAL_DISTANCE)
 	{
 		return false;
 	}
@@ -213,23 +217,27 @@ bool Script_Shaman::Heal(Unit* pmTarget, bool pmCure)
 
 bool Script_Shaman::Pull(Unit* pmTarget)
 {
-	if (!pmTarget)
-	{
-		return false;
-	}
-	else if (!pmTarget->IsAlive())
-	{
-		return false;
-	}
 	if (!me)
 	{
 		return false;
 	}
-	else if (!me->IsValidAttackTarget(pmTarget))
+	if (!me->IsAlive())
 	{
 		return false;
 	}
-	float targetDistance = me->GetDistance3dToCenter(pmTarget);
+	if (!pmTarget)
+	{
+		return false;
+	}
+	if (!pmTarget->IsAlive())
+	{
+		return false;
+	}
+	if (!me->IsValidAttackTarget(pmTarget))
+	{
+		return false;
+	}
+	float targetDistance = me->GetDistance(pmTarget);
 	if (targetDistance > SHAMAN_HEAL_DISTANCE)
 	{
 		return false;
@@ -250,6 +258,10 @@ bool Script_Shaman::Pull(Unit* pmTarget)
 bool Script_Shaman::DPS(Unit* pmTarget, bool pmChase)
 {
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
 	{
 		return false;
 	}

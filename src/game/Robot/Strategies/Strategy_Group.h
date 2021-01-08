@@ -98,6 +98,7 @@ public:
     bool holding;
     bool following;
     bool cure;
+    bool aoe;
     uint32 paladinAura;
     bool marked;
     Position markPos;

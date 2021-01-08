@@ -10288,6 +10288,16 @@ bool Unit::HasAuraWithDispelType(uint32 pmDispelType)
 }
 
 // EJ get creature
+Unit* Unit::GetUnitByOG(ObjectGuid pmOG)
+{
+	if (this->IsInWorld())
+	{
+		return this->GetMap()->GetUnit(pmOG);
+	}
+	return nullptr;
+}
+
+
 Creature* Unit::GetNearbyCreatureWithEntry(uint32 pmEntry, float pmExactDistance)
 {
 	std::list<Creature*> allCreatures;

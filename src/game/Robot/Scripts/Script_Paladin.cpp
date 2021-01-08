@@ -7,6 +7,7 @@ Script_Paladin::Script_Paladin(Player* pmMe) :Script_Base(pmMe)
 {
 	blessingType = PaladinBlessingType::PaladinBlessingType_Kings;
 	auraType = PaladinAuraType::PaladinAuraType_Retribution;
+	crusader = false;
 }
 
 void Script_Paladin::Reset()
@@ -84,7 +85,7 @@ bool Script_Paladin::Heal_Holy(Unit* pmTarget, bool pmCure)
 	{
 		return false;
 	}
-	if (me->GetDistance(pmTarget) > PALADIN_RANGE_DISTANCE)
+	if (me->GetDistance(pmTarget) > PALADIN_HEAL_DISTANCE)
 	{
 		return false;
 	}
@@ -93,7 +94,11 @@ bool Script_Paladin::Heal_Holy(Unit* pmTarget, bool pmCure)
 	{
 		if (!sRobotManager->HasAura(pmTarget, "Forbearance"))
 		{
-			if (CastSpell(pmTarget, "Lay on Hands", PALADIN_RANGE_DISTANCE))
+			if (CastSpell(pmTarget, "Blessing of Protection", PALADIN_RANGE_DISTANCE))
+			{
+				return true;
+			}
+			if (CastSpell(pmTarget, "Lay on Hands", PALADIN_HEAL_DISTANCE))
 			{
 				return true;
 			}
@@ -101,14 +106,14 @@ bool Script_Paladin::Heal_Holy(Unit* pmTarget, bool pmCure)
 	}
 	if (healthPCT < 60.0f)
 	{
-		if (CastSpell(pmTarget, "Holy Light", PALADIN_RANGE_DISTANCE))
+		if (CastSpell(pmTarget, "Holy Light", PALADIN_HEAL_DISTANCE))
 		{
 			return true;
 		}
 	}
 	if (healthPCT < 80.0f)
 	{
-		if (CastSpell(pmTarget, "Flash of Light", PALADIN_RANGE_DISTANCE))
+		if (CastSpell(pmTarget, "Flash of Light", PALADIN_HEAL_DISTANCE))
 		{
 			return true;
 		}
@@ -135,14 +140,120 @@ bool Script_Paladin::Heal_Holy(Unit* pmTarget, bool pmCure)
 	return false;
 }
 
-bool Script_Paladin::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Paladin::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
-	return false;
+	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
+	{
+		return false;
+	}
+	if (!me->IsValidAttackTarget(pmTarget))
+	{
+		return false;
+	}
+	if (!pmTarget)
+	{
+		return false;
+	}
+	else if (!pmTarget->IsAlive())
+	{
+		return false;
+	}
+	if (me->GetHealthPercent() < 20.0f)
+	{
+		UseHealingPotion();
+	}
+	if ((me->GetPower(Powers::POWER_MANA) * 100 / me->GetMaxPower(Powers::POWER_MANA)) < 30)
+	{
+		UseManaPotion();
+	}
+	float targetDistance = me->GetDistance(pmTarget);
+	if (pmChase)
+	{
+		if (targetDistance > ATTACK_RANGE_LIMIT)
+		{
+			return false;
+		}
+		if (!Chase(pmTarget))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		if (targetDistance > PALADIN_RANGE_DISTANCE)
+		{
+			return false;
+		}
+		if (!me->isInFront(pmTarget, M_PI / 16))
+		{
+			me->SetFacingToObject(pmTarget);
+		}
+	}
+	me->Attack(pmTarget, true);
+	if (pmTarget->GetHealthPercent() < 20.0f)
+	{
+		if (CastSpell(pmTarget, "Hammer of Wrath", MELEE_MAX_DISTANCE))
+		{
+			return true;
+		}
+	}
+	if (pmTarget->IsNonMeleeSpellCasted(false))
+	{
+		if (CastSpell(pmTarget, "Hammer of Justice", MELEE_MAX_DISTANCE))
+		{
+			return true;
+		}
+	}
+	if (pmAOE)
+	{
+		uint32 meleeCount = 0;
+		if (Group* myGroup = me->GetGroup())
+		{
+			for (std::unordered_map<ObjectGuid, Unit*>::iterator gaIT = myGroup->groupAttackersMap.begin(); gaIT != myGroup->groupAttackersMap.end(); gaIT++)
+			{
+				if (Unit* eachAttacker = gaIT->second)
+				{
+					if (eachAttacker->GetTargetGuid() != me->GetObjectGuid())
+					{
+						if (me->GetDistance(eachAttacker) < FOLLOW_NEAR_DISTANCE)
+						{
+							meleeCount++;
+						}
+					}
+				}
+			}
+		}
+		if (meleeCount > 1)
+		{
+			if (CastSpell(me, "Consecration"))
+			{
+				return true;
+			}
+		}
+	}
+	if (CastSpell(me, "Seal of Righteousness", MELEE_MAX_DISTANCE, true))
+	{
+		return true;
+	}
+	if (CastSpell(pmTarget, "Judgement", MELEE_MAX_DISTANCE))
+	{
+		return true;
+	}
+
+	return true;
 }
 
 bool Script_Paladin::DPS(Unit* pmTarget, bool pmChase)
 {
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
 	{
 		return false;
 	}
@@ -167,7 +278,7 @@ bool Script_Paladin::DPS(Unit* pmTarget, bool pmChase)
 	}
 	case 2:
 	{
-		return DPS_Retribution(pmTarget, pmChase);
+		return DPS_Common(pmTarget, pmChase);
 	}
 	default:
 		return DPS_Common(pmTarget, pmChase);
@@ -176,76 +287,7 @@ bool Script_Paladin::DPS(Unit* pmTarget, bool pmChase)
 
 bool Script_Paladin::DPS_Retribution(Unit* pmTarget, bool pmChase)
 {
-	if (!pmTarget)
-	{
-		return false;
-	}
-	else if (!pmTarget->IsAlive())
-	{
-		return false;
-	}
-	if (!me)
-	{
-		return false;
-	}
-	else if (!me->IsValidAttackTarget(pmTarget))
-	{
-		return false;
-	}
-	float targetDistance = me->GetDistance(pmTarget);
-	if (pmChase)
-	{
-		if (targetDistance > ATTACK_RANGE_LIMIT)
-		{
-			return false;
-		}
-		if (!Chase(pmTarget))
-		{
-			return false;
-		}
-	}
-	else
-	{
-		if (targetDistance > RANGED_MAX_DISTANCE)
-		{
-			return false;
-		}
-		if (!me->isInFront(pmTarget, M_PI / 16))
-		{
-			me->SetFacingToObject(pmTarget);
-		}
-	}
-	me->Attack(pmTarget, true);
-	if (pmTarget->GetHealthPercent() < 20.0f)
-	{
-		if (CastSpell(pmTarget, "Hammer of Wrath", MELEE_MAX_DISTANCE))
-		{
-			return true;
-		}
-	}
-	if (me->HasAura(AURA_THE_ART_OF_WAR_1) || me->HasAura(AURA_THE_ART_OF_WAR_2))
-	{
-		if (CastSpell(pmTarget, "Exorcism", MELEE_MAX_DISTANCE))
-		{
-			return true;
-		}
-	}
-	if (pmTarget->IsNonMeleeSpellCasted(false))
-	{
-		if (CastSpell(pmTarget, "Hammer of Justice", MELEE_MAX_DISTANCE))
-		{
-			return true;
-		}
-	}
-	if (CastSpell(pmTarget, "Judgement of Wisdom", MELEE_MAX_DISTANCE))
-	{
-		return true;
-	}
-	if (CastSpell(pmTarget, "Crusader Strike", MELEE_MAX_DISTANCE))
-	{
-		return true;
-	}
-	return true;
+	return false;
 }
 
 bool Script_Paladin::DPS_Common(Unit* pmTarget, bool pmChase)
@@ -280,7 +322,7 @@ bool Script_Paladin::DPS_Common(Unit* pmTarget, bool pmChase)
 	}
 	else
 	{
-		if (targetDistance > RANGED_MAX_DISTANCE)
+		if (targetDistance > PALADIN_RANGE_DISTANCE)
 		{
 			return false;
 		}
@@ -304,7 +346,31 @@ bool Script_Paladin::DPS_Common(Unit* pmTarget, bool pmChase)
 			return true;
 		}
 	}
-	if (CastSpell(pmTarget, "Judgement of Light", MELEE_MAX_DISTANCE))
+	if (crusader)
+	{
+		if (!sRobotManager->HasAura(pmTarget, "Judgement of the Crusader"))
+		{
+			if (CastSpell(me, "Seal of the Crusader", MELEE_MAX_DISTANCE, true))
+			{
+				return true;
+			}
+		}
+		else
+		{
+			if (CastSpell(me, "Seal of Righteousness", MELEE_MAX_DISTANCE, true))
+			{
+				return true;
+			}
+		}
+	}
+	else
+	{
+		if (CastSpell(me, "Seal of Righteousness", MELEE_MAX_DISTANCE, true))
+		{
+			return true;
+		}
+	}
+	if (CastSpell(pmTarget, "Judgement", MELEE_MAX_DISTANCE))
 	{
 		return true;
 	}
