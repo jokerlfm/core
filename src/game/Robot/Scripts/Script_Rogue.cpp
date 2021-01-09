@@ -15,7 +15,7 @@ bool Script_Rogue::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 	return false;
 }
 
-bool Script_Rogue::DPS(Unit* pmTarget, bool pmChase)
+bool Script_Rogue::DPS(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	if (!me)
 	{

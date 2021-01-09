@@ -273,7 +273,7 @@ bool Script_Priest::GroupHeal_Holy(float pmMaxHealthPercent)
 	return false;
 }
 
-bool Script_Priest::DPS(Unit* pmTarget, bool pmChase)
+bool Script_Priest::DPS(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	if (!me)
 	{

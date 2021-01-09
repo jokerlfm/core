@@ -36,7 +36,6 @@ public:
 	uint32 activeMovementType;
 	float chaseDistanceMin;
 	float chaseDistanceMax;
-	int limitDelay;
 };
 
 class Script_Base

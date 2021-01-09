@@ -29,7 +29,7 @@ void Strategy_Group::Reset()
 	holding = false;
 	following = true;
 	cure = true;
-	aoe = false;
+	aoe = true;
 	moveDelay = 0;
 	actionType = 0;
 	actionDelay = 0;
@@ -56,7 +56,10 @@ void Strategy_Group::Reset()
 	}
 	case Classes::CLASS_PALADIN:
 	{
-		followDistance = MELEE_MIN_DISTANCE;
+		if (me->groupRole != GroupRole::GroupRole_Healer)
+		{
+			followDistance = MELEE_MIN_DISTANCE;
+		}
 		break;
 	}
 	case Classes::CLASS_WARLOCK:
@@ -86,7 +89,6 @@ void Strategy_Group::Reset()
 		break;
 	}
 	}
-	sb->Reset();
 }
 
 void Strategy_Group::InitialStrategy()
@@ -183,18 +185,6 @@ bool Strategy_Group::Update0(uint32 pmDiff)
 		if (!me->GetSession()->isRobotSession)
 		{
 			return false;
-		}
-		if (Player* leaderPlayer = ObjectAccessor::FindPlayer(myGroup->GetLeaderGuid()))
-		{
-			if (WorldSession* leaderWS = leaderPlayer->GetSession())
-			{
-				if (leaderWS->isRobotSession)
-				{
-					me->RemoveFromGroup();
-					sb->Reset();
-					return false;
-				}
-			}
 		}
 		if (readyCheckDelay > 0)
 		{
@@ -367,6 +357,12 @@ void Strategy_Group::Update(uint32 pmDiff)
 		if (engageDelay > 0)
 		{
 			engageDelay -= pmDiff;
+			if (engageDelay <= 0)
+			{
+				sb->rm->ResetMovement();
+				sb->ClearTarget();
+				return;
+			}
 			if (me->IsAlive())
 			{
 				switch (me->groupRole)
@@ -797,7 +793,25 @@ bool Strategy_Group::Tank()
 					{
 						if (sb->Tank(eachAttacker, Chasing(), aoe))
 						{
-							myGroup->SetTargetIcon(4, eachAttacker->GetObjectGuid());
+							myGroup->SetTargetIcon(7, eachAttacker->GetObjectGuid());
+							return true;
+						}
+					}
+				}
+			}
+		}
+		// all ot 
+		for (std::unordered_map<ObjectGuid, Unit*>::iterator gaIT = myGroup->groupAttackersMap.begin(); gaIT != myGroup->groupAttackersMap.end(); gaIT++)
+		{
+			if (Unit* eachAttacker = gaIT->second)
+			{
+				if (eachAttacker->GetTargetGuid() != me->GetObjectGuid())
+				{
+					if (me->GetDistance(eachAttacker) < ATTACK_RANGE_LIMIT)
+					{
+						if (sb->Tank(eachAttacker, Chasing(), aoe))
+						{
+							myGroup->SetTargetIcon(7, eachAttacker->GetObjectGuid());
 							return true;
 						}
 					}
@@ -821,7 +835,7 @@ bool Strategy_Group::Tank()
 				{
 					if (sb->Tank(target, Chasing(), aoe))
 					{
-						myGroup->SetTargetIcon(4, target->GetObjectGuid());
+						myGroup->SetTargetIcon(7, target->GetObjectGuid());
 						return true;
 					}
 				}
@@ -834,7 +848,7 @@ bool Strategy_Group::Tank()
 			{
 				if (sb->Tank(target, Chasing(), aoe))
 				{
-					myGroup->SetTargetIcon(4, target->GetObjectGuid());
+					myGroup->SetTargetIcon(7, target->GetObjectGuid());
 					return true;
 				}
 			}
@@ -867,7 +881,7 @@ bool Strategy_Group::Tank()
 		{
 			if (sb->Tank(nearestAttacker, Chasing(), aoe))
 			{
-				myGroup->SetTargetIcon(4, nearestAttacker->GetObjectGuid());
+				myGroup->SetTargetIcon(7, nearestAttacker->GetObjectGuid());
 				return true;
 			}
 		}

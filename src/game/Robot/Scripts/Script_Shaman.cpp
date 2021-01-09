@@ -255,7 +255,7 @@ bool Script_Shaman::Pull(Unit* pmTarget)
 	return true;
 }
 
-bool Script_Shaman::DPS(Unit* pmTarget, bool pmChase)
+bool Script_Shaman::DPS(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	if (!me)
 	{

@@ -137,7 +137,7 @@ bool Script_Warrior::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 	return true;
 }
 
-bool Script_Warrior::DPS(Unit* pmTarget, bool pmChase)
+bool Script_Warrior::DPS(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	if (!me)
 	{

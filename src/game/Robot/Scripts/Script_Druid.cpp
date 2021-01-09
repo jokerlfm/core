@@ -124,7 +124,7 @@ void Script_Druid::Update(uint32 pmDiff)
 	Script_Base::Update(pmDiff);
 }
 
-bool Script_Druid::DPS(Unit* pmTarget, bool pmChase)
+bool Script_Druid::DPS(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	if (!me)
 	{

@@ -15,7 +15,7 @@ class Script_Rogue :public Script_Base
 {
 public:    
     Script_Rogue(Player* pmMe);
-    bool DPS(Unit* pmTarget, bool pmChase = true);
+    bool DPS(Unit* pmTarget, bool pmChase = true, bool pmAOE = false);
     bool Tank(Unit* pmTarget, bool pmChase, bool pmAOE = false);
     bool Heal(Unit* pmTarget, bool pmCure = true);
     bool Buff(Unit* pmTarget, bool pmCure = true);

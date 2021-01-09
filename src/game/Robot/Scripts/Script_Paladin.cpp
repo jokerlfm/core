@@ -2,6 +2,7 @@
 #include "SpellMgr.h"
 #include "RobotManager.h"
 #include "Group.h"
+#include "Strategy_Group.h"
 
 Script_Paladin::Script_Paladin(Player* pmMe) :Script_Base(pmMe)
 {
@@ -194,6 +195,10 @@ bool Script_Paladin::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 		}
 	}
 	me->Attack(pmTarget, true);
+	if (CastSpell(me, "Righteous Fury", PALADIN_RANGE_DISTANCE, true))
+	{
+		return true;
+	}
 	if (pmTarget->GetHealthPercent() < 20.0f)
 	{
 		if (CastSpell(pmTarget, "Hammer of Wrath", MELEE_MAX_DISTANCE))
@@ -247,7 +252,7 @@ bool Script_Paladin::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 	return true;
 }
 
-bool Script_Paladin::DPS(Unit* pmTarget, bool pmChase)
+bool Script_Paladin::DPS(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	if (!me)
 	{
@@ -384,13 +389,27 @@ bool Script_Paladin::Buff(Unit* pmTarget, bool pmCure)
 	{
 		return false;
 	}
-	else if (!pmTarget->IsAlive())
+	if (!pmTarget->IsAlive())
 	{
 		return false;
 	}
 	if (!me)
 	{
 		return false;
+	}
+	if (!me->IsAlive())
+	{
+		return false;
+	}
+	if (me->groupRole == GroupRole::GroupRole_Tank)
+	{
+		if (pmTarget->GetObjectGuid() == me->GetObjectGuid())
+		{
+			if (CastSpell(me, "Righteous Fury", PALADIN_RANGE_DISTANCE, true))
+			{
+				return true;
+			}
+		}
 	}
 	switch (auraType)
 	{

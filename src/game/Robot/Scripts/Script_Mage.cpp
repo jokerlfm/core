@@ -19,7 +19,7 @@ bool Script_Mage::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 	return false;
 }
 
-bool Script_Mage::DPS(Unit* pmTarget, bool pmChase)
+bool Script_Mage::DPS(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	if (!me)
 	{
@@ -305,12 +305,15 @@ bool Script_Mage::Buff(Unit* pmTarget, bool pmCure)
 	{
 		return false;
 	}
-	else if (!pmTarget->IsAlive())
+	if (!pmTarget->IsAlive())
 	{
 		return false;
 	}
-
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
 	{
 		return false;
 	}

@@ -959,51 +959,6 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 					myGroup->groupStrategyIndex = Strategy_Index::Strategy_Index_Group;
 					replyStream << "Strategy set to group";
 				}
-				else if (strategyName == "blackrock spire")
-				{
-					myGroup->groupStrategyIndex = Strategy_Index::Strategy_Index_Group_BlackrockSpire;
-					replyStream << "Strategy set to blackrock spire";
-				}
-				else if (strategyName == "doctor weavil")
-				{
-					myGroup->groupStrategyIndex = Strategy_Index::Strategy_Index_Group_DoctorWeavil;
-					replyStream << "Strategy set to doctor weavil";
-				}
-				else if (strategyName == "ysondre")
-				{
-					myGroup->groupStrategyIndex = Strategy_Index::Strategy_Index_Group_Ysondre;
-					replyStream << "Strategy set to ysondre. 2 tanks. 8 healers. healer 1- 3 for tank1. healer 4 - 6 for tank2.";
-				}
-				else if (strategyName == "taerar")
-				{
-					myGroup->groupStrategyIndex = Strategy_Index::Strategy_Index_Group_Taerar;
-					replyStream << "Strategy set to taerar. 5 tanks. tank 3 - 5 for shades. 8 healers. healer 1- 3 for tank1. healer 4 - 6 for tank2.";
-				}
-				else if (strategyName == "lethon")
-				{
-					myGroup->groupStrategyIndex = Strategy_Index::Strategy_Index_Group_Lethon;
-					replyStream << "Strategy set to lethon. 2 tanks. 8 healers. healer 1- 3 for tank1. healer 4 - 6 for tank2.";
-				}
-				else if (strategyName == "emeriss")
-				{
-					myGroup->groupStrategyIndex = Strategy_Index::Strategy_Index_Group_Emeriss;
-					replyStream << "Strategy set to emeriss. 2 tanks. 12 healers. healer 1- 2 for tank1. healer 3 - 4 for tank2. healer 5 - 12 should be in every sub group.";
-				}
-				else if (strategyName == "azuregos")
-				{
-					myGroup->groupStrategyIndex = Strategy_Index::Strategy_Index_Group_Azuregos;
-					replyStream << "Strategy set to azuregos. 1 tank. 8 healers. healer 1- 4 for tank. healer 5 - 8 for members.";
-				}
-				else if (strategyName == "molten core")
-				{
-					myGroup->groupStrategyIndex = Strategy_Index::Strategy_Index_Group_MoltenCore;
-					replyStream << "Strategy set to molten core. 2 tank. 6 healers. 4 mages for plymorph flamewaker healers.";
-				}
-				else if (strategyName == "test")
-				{
-					myGroup->groupStrategyIndex = Strategy_Index::Strategy_Index_Group_Test;
-					replyStream << "Strategy set to test. 2 tank. 6 healers. 4 mages for plymorph flamewaker healers.";
-				}
 				else
 				{
 					replyStream << "Unknown strategy";
@@ -1016,14 +971,8 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 						if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
 						{
 							rs->Reset();
-							if (member->rai)
-							{
-								rs->sb->ClearTarget();
-							}
+							rs->sb->Reset();
 						}
-						member->AttackStop();
-						member->StopMoving();
-						member->GetMotionMaster()->Clear();
 					}
 				}
 			}
@@ -1031,59 +980,9 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 			{
 				switch (myGroup->groupStrategyIndex)
 				{
-				case Strategy_Index::Strategy_Index_Solo:
-				{
-					replyStream << "Strategy is solo";
-					break;
-				}
 				case Strategy_Index::Strategy_Index_Group:
 				{
 					replyStream << "Strategy is group";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_BlackrockSpire:
-				{
-					replyStream << "Strategy is blackrock spire";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_DoctorWeavil:
-				{
-					replyStream << "Strategy is doctor weavil";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Ysondre:
-				{
-					replyStream << "Strategy is ysondre";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Taerar:
-				{
-					replyStream << "Strategy is taerar";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Lethon:
-				{
-					replyStream << "Strategy is lethon";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Emeriss:
-				{
-					replyStream << "Strategy is emeriss";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Azuregos:
-				{
-					replyStream << "Strategy is azuregos";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_MoltenCore:
-				{
-					replyStream << "Strategy is molten core";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Test:
-				{
-					replyStream << "Strategy is test";
 					break;
 				}
 				default:
@@ -1144,6 +1043,19 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 						}
 						if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
 						{
+							if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_TANK)
+							{
+								member->groupRole = GroupRole::GroupRole_Tank;
+							}
+							else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_HEALER)
+							{
+								member->groupRole = GroupRole::GroupRole_Healer;
+							}
+							else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_DPS)
+							{
+								member->groupRole = GroupRole::GroupRole_DPS;
+							}
+							rs->sb->Reset();
 							rs->sb->rti = -1;
 							if (member->GetClass() == Classes::CLASS_PALADIN)
 							{
@@ -1502,868 +1414,11 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 									}
 								}
 							}
+							rs->Reset();
 						}
 					}
 				}
-				switch (myGroup->groupStrategyIndex)
-				{
-				case Strategy_Index::Strategy_Index_Group:
-				{
-					for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-					{
-						Player* member = groupRef->getSource();
-						if (member)
-						{
-							if (!member->GetSession()->isRobotSession)
-							{
-								member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_DPS_Range;
-								continue;
-							}
-							else if (!member->rai)
-							{
-								continue;
-							}
-							if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
-							{
-								rs->Reset();
-								if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_TANK)
-								{
-									member->groupRole = GroupRole::GroupRole_Tank;
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_HEALER)
-								{
-									member->groupRole = GroupRole::GroupRole_Healer;
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_DPS)
-								{
-									member->groupRole = GroupRole::GroupRole_DPS;
-								}
-							}
-						}
-					}
-					replyStream << "Arranged";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_BlackrockSpire:
-				{
-					bool tank1Set = false;
-					bool tank2Set = false;
-					bool tank3Set = false;
-					bool healer1Set = false;
-					for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-					{
-						Player* member = groupRef->getSource();
-						if (member)
-						{
-							if (!member->GetSession()->isRobotSession)
-							{
-								member->groupRole = GroupRole_Blackrock_Spire::GroupRole_Blackrock_Spire_DPS;
-								continue;
-							}
-							else if (!member->rai)
-							{
-								continue;
-							}
-							if (Strategy_Group_BlackrockSpire* rs = (Strategy_Group_BlackrockSpire*)member->rai->strategyMap[myGroup->groupStrategyIndex])
-							{
-								rs->Reset();
-								rs->dpsDelay = 5000;
-								rs->followDistance = MELEE_MIN_DISTANCE;
-								if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_TANK)
-								{
-									if (!tank1Set)
-									{
-										member->groupRole = GroupRole_Blackrock_Spire::GroupRole_Blackrock_Spire_Tank1;
-										tank1Set = true;
-										continue;
-									}
-									else if (!tank2Set)
-									{
-										member->groupRole = GroupRole_Blackrock_Spire::GroupRole_Blackrock_Spire_Tank2;
-										tank2Set = true;
-										continue;
-									}
-									else if (!tank3Set)
-									{
-										member->groupRole = GroupRole_Blackrock_Spire::GroupRole_Blackrock_Spire_Tank3;
-										tank3Set = true;
-										continue;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_HEALER)
-								{
-									if (!healer1Set)
-									{
-										member->groupRole = GroupRole_Blackrock_Spire::GroupRole_Blackrock_Spire_Healer1;
-										healer1Set = true;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Blackrock_Spire::GroupRole_Blackrock_Spire_Healer2;
-										continue;
-									}
-								}
-								member->groupRole = GroupRole_Blackrock_Spire::GroupRole_Blackrock_Spire_DPS;
-							}
-						}
-					}
-					replyStream << "Arranged ";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Ysondre:
-				{
-					bool tank1Set = false;
-					bool tank2Set = false;
-					bool healer1Set = false;
-					bool healer2Set = false;
-					bool healer3Set = false;
-					bool healer4Set = false;
-					bool healer5Set = false;
-					bool healer6Set = false;
-					bool healer7Set = false;
-					bool healer8Set = false;
-					for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-					{
-						Player* member = groupRef->getSource();
-						if (member)
-						{
-							if (!member->GetSession()->isRobotSession)
-							{
-								member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_DPS_Range;
-								continue;
-							}
-							else if (!member->rai)
-							{
-								continue;
-							}
-							if (Strategy_Group_Ysondre* rs = (Strategy_Group_Ysondre*)member->rai->strategyMap[myGroup->groupStrategyIndex])
-							{
-								rs->Reset();
-								rs->dpsDelay = 5000;
-								rs->followDistance = FOLLOW_MAX_DISTANCE;
-								if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_TANK)
-								{
-									if (!tank1Set)
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_Tank1;
-										myGroup->SetTargetIcon(0, member->GetObjectGuid());
-										tank1Set = true;
-										continue;
-									}
-									else if (!tank2Set)
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_Tank2;
-										tank2Set = true;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_DPS_Melee;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_HEALER)
-								{
-									if (!healer1Set)
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_Healer1;
-										myGroup->SetTargetIcon(1, member->GetObjectGuid());
-										healer1Set = true;
-										continue;
-									}
-									else if (!healer2Set)
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_Healer2;
-										healer2Set = true;
-										continue;
-									}
-									else if (!healer3Set)
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_Healer3;
-										healer3Set = true;
-										continue;
-									}
-									else if (!healer4Set)
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_Healer4;
-										myGroup->SetTargetIcon(2, member->GetObjectGuid());
-										healer4Set = true;
-										continue;
-									}
-									else if (!healer5Set)
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_Healer5;
-										healer5Set = true;
-										continue;
-									}
-									else if (!healer6Set)
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_Healer6;
-										healer6Set = true;
-										continue;
-									}
-									else if (!healer7Set)
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_Healer7;
-										myGroup->SetTargetIcon(3, member->GetObjectGuid());
-										healer7Set = true;
-										continue;
-									}
-									else if (!healer8Set)
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_Healer8;
-										healer8Set = true;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_DPS_Range;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_DPS)
-								{
-									if (member->GetClass() == Classes::CLASS_WARRIOR || member->GetClass() == Classes::CLASS_PALADIN || member->GetClass() == Classes::CLASS_ROGUE || member->GetClass() == Classes::CLASS_DRUID)
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_DPS_Melee;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Ysondre::GroupRole_Ysondre_DPS_Range;
-									}
-								}
-							}
-						}
-					}
-					replyStream << "Arranged";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Lethon:
-				{
-					bool tank1Set = false;
-					bool tank2Set = false;
-					bool healer1Set = false;
-					bool healer2Set = false;
-					bool healer3Set = false;
-					bool healer4Set = false;
-					bool healer5Set = false;
-					bool healer6Set = false;
-					bool healer7Set = false;
-					bool healer8Set = false;
-					for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-					{
-						Player* member = groupRef->getSource();
-						if (member)
-						{
-							if (!member->GetSession()->isRobotSession)
-							{
-								member->groupRole = GroupRole_Lethon::GroupRole_Lethon_DPS_Range;
-								continue;
-							}
-							else if (!member->rai)
-							{
-								continue;
-							}
-							if (Strategy_Group_Lethon* rs = (Strategy_Group_Lethon*)member->rai->strategyMap[myGroup->groupStrategyIndex])
-							{
-								rs->Reset();
-								rs->dpsDelay = 5000;
-								rs->followDistance = FOLLOW_MAX_DISTANCE;
-								if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_TANK)
-								{
-									if (!tank1Set)
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_Tank1;
-										myGroup->SetTargetIcon(0, member->GetObjectGuid());
-										tank1Set = true;
-										continue;
-									}
-									else if (!tank2Set)
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_Tank2;
-										tank2Set = true;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_DPS_Melee;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_HEALER)
-								{
-									if (!healer1Set)
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_Healer1;
-										myGroup->SetTargetIcon(1, member->GetObjectGuid());
-										healer1Set = true;
-										continue;
-									}
-									else if (!healer2Set)
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_Healer2;
-										healer2Set = true;
-										continue;
-									}
-									else if (!healer3Set)
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_Healer3;
-										healer3Set = true;
-										continue;
-									}
-									else if (!healer4Set)
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_Healer4;
-										myGroup->SetTargetIcon(2, member->GetObjectGuid());
-										healer4Set = true;
-										continue;
-									}
-									else if (!healer5Set)
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_Healer5;
-										healer5Set = true;
-										continue;
-									}
-									else if (!healer6Set)
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_Healer6;
-										healer6Set = true;
-										continue;
-									}
-									else if (!healer7Set)
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_Healer7;
-										myGroup->SetTargetIcon(3, member->GetObjectGuid());
-										healer7Set = true;
-										continue;
-									}
-									else if (!healer8Set)
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_Healer8;
-										healer8Set = true;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_DPS_Range;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_DPS)
-								{
-									if (member->GetClass() == Classes::CLASS_WARRIOR || member->GetClass() == Classes::CLASS_PALADIN || member->GetClass() == Classes::CLASS_ROGUE || member->GetClass() == Classes::CLASS_DRUID)
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_DPS_Melee;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Lethon::GroupRole_Lethon_DPS_Range;
-									}
-								}
-							}
-						}
-					}
-					replyStream << "Arranged";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Taerar:
-				{
-					bool tank1Set = false;
-					bool tank2Set = false;
-					bool tank3Set = false;
-					bool tank4Set = false;
-					bool tank5Set = false;
-					bool healer1Set = false;
-					bool healer2Set = false;
-					bool healer3Set = false;
-					bool healer4Set = false;
-					bool healer5Set = false;
-					bool healer6Set = false;
-					bool healer7Set = false;
-					bool healer8Set = false;
-					for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-					{
-						Player* member = groupRef->getSource();
-						if (member)
-						{
-							if (!member->GetSession()->isRobotSession)
-							{
-								member->groupRole = GroupRole_Taerar::GroupRole_Taerar_DPS_Range;
-								continue;
-							}
-							else if (!member->rai)
-							{
-								continue;
-							}
-							if (Strategy_Group_Taerar* rs = (Strategy_Group_Taerar*)member->rai->strategyMap[myGroup->groupStrategyIndex])
-							{
-								rs->Reset();
-								rs->dpsDelay = 5000;
-								rs->followDistance = FOLLOW_MAX_DISTANCE;
-								if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_TANK)
-								{
-									if (!tank1Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Tank1;
-										myGroup->SetTargetIcon(0, member->GetObjectGuid());
-										tank1Set = true;
-										continue;
-									}
-									else if (!tank2Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Tank2;
-										tank2Set = true;
-										continue;
-									}
-									else if (!tank3Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Tank3;
-										tank3Set = true;
-										continue;
-									}
-									else if (!tank4Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Tank4;
-										tank4Set = true;
-										continue;
-									}
-									else if (!tank5Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Tank5;
-										tank5Set = true;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_DPS_Melee;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_HEALER)
-								{
-									if (!healer1Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Healer1;
-										myGroup->SetTargetIcon(1, member->GetObjectGuid());
-										healer1Set = true;
-										continue;
-									}
-									else if (!healer2Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Healer2;
-										healer2Set = true;
-										continue;
-									}
-									else if (!healer3Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Healer3;
-										healer3Set = true;
-										continue;
-									}
-									else if (!healer4Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Healer4;
-										myGroup->SetTargetIcon(2, member->GetObjectGuid());
-										healer4Set = true;
-										continue;
-									}
-									else if (!healer5Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Healer5;
-										healer5Set = true;
-										continue;
-									}
-									else if (!healer6Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Healer6;
-										healer6Set = true;
-										continue;
-									}
-									else if (!healer7Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Healer7;
-										myGroup->SetTargetIcon(3, member->GetObjectGuid());
-										healer7Set = true;
-										continue;
-									}
-									else if (!healer8Set)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_Healer8;
-										healer8Set = true;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_DPS_Range;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_DPS)
-								{
-									if (member->GetClass() == Classes::CLASS_WARRIOR || member->GetClass() == Classes::CLASS_PALADIN || member->GetClass() == Classes::CLASS_ROGUE || member->GetClass() == Classes::CLASS_DRUID)
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_DPS_Melee;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Taerar::GroupRole_Taerar_DPS_Range;
-									}
-								}
-							}
-						}
-					}
-					replyStream << "Arranged";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Emeriss:
-				{
-					bool tank1Set = false;
-					bool tank2Set = false;
-					bool healer1Set = false;
-					bool healer2Set = false;
-					bool healer3Set = false;
-					bool healer4Set = false;
-					bool healer5Set = false;
-					bool healer6Set = false;
-					bool healer7Set = false;
-					bool healer8Set = false;
-					bool healer9Set = false;
-					bool healer10Set = false;
-					bool healer11Set = false;
-					bool healer12Set = false;
-					for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-					{
-						Player* member = groupRef->getSource();
-						if (member)
-						{
-							if (!member->GetSession()->isRobotSession)
-							{
-								member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_DPS_Range;
-								continue;
-							}
-							else if (!member->rai)
-							{
-								continue;
-							}
-							if (Strategy_Group_Emeriss* rs = (Strategy_Group_Emeriss*)member->rai->strategyMap[myGroup->groupStrategyIndex])
-							{
-								rs->Reset();
-								rs->dpsDelay = 5000;
-								rs->followDistance = FOLLOW_MAX_DISTANCE;
-								if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_TANK)
-								{
-									if (!tank1Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Tank1;
-										myGroup->SetTargetIcon(0, member->GetObjectGuid());
-										tank1Set = true;
-										continue;
-									}
-									else if (!tank2Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Tank2;
-										tank2Set = true;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_DPS_Melee;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_HEALER)
-								{
-									if (!healer1Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer1;
-										myGroup->SetTargetIcon(1, member->GetObjectGuid());
-										healer1Set = true;
-										continue;
-									}
-									else if (!healer2Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer2;
-										healer2Set = true;
-										continue;
-									}
-									else if (!healer3Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer3;
-										myGroup->SetTargetIcon(2, member->GetObjectGuid());
-										healer3Set = true;
-										continue;
-									}
-									else if (!healer4Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer4;
-										healer4Set = true;
-										continue;
-									}
-									else if (!healer5Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer5;
-										healer5Set = true;
-										continue;
-									}
-									else if (!healer6Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer6;
-										healer6Set = true;
-										continue;
-									}
-									else if (!healer7Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer7;
-										healer7Set = true;
-										continue;
-									}
-									else if (!healer8Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer8;
-										healer8Set = true;
-										continue;
-									}
-									else if (!healer9Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer9;
-										healer9Set = true;
-										continue;
-									}
-									else if (!healer10Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer10;
-										healer10Set = true;
-										continue;
-									}
-									else if (!healer11Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer11;
-										healer11Set = true;
-										continue;
-									}
-									else if (!healer12Set)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_Healer12;
-										healer12Set = true;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_DPS_Range;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_DPS)
-								{
-									if (member->GetClass() == Classes::CLASS_WARRIOR || member->GetClass() == Classes::CLASS_PALADIN || member->GetClass() == Classes::CLASS_ROGUE || member->GetClass() == Classes::CLASS_DRUID)
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_DPS_Melee;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Emeriss::GroupRole_Emeriss_DPS_Range;
-									}
-								}
-							}
-						}
-					}
-					replyStream << "Arranged";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Azuregos:
-				{
-					bool tank1Set = false;
-					uint32 healer1Count = 0;
-					uint32 healer2Count = 0;
-					for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-					{
-						Player* member = groupRef->getSource();
-						if (member)
-						{
-							if (!member->GetSession()->isRobotSession)
-							{
-								member->groupRole = GroupRole_Azuregos::GroupRole_Azuregos_DPS;
-								continue;
-							}
-							else if (!member->rai)
-							{
-								continue;
-							}
-							if (Strategy_Group_Azuregos* rs = (Strategy_Group_Azuregos*)member->rai->strategyMap[myGroup->groupStrategyIndex])
-							{
-								rs->Reset();
-								rs->dpsDelay = 5000;
-								rs->followDistance = FOLLOW_MAX_DISTANCE;
-								if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_TANK)
-								{
-									if (!tank1Set)
-									{
-										member->groupRole = GroupRole_Azuregos::GroupRole_Azuregos_Tank;
-										myGroup->SetTargetIcon(0, member->GetObjectGuid());
-										tank1Set = true;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Azuregos::GroupRole_Azuregos_DPS;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_HEALER)
-								{
-									if (healer1Count < 4)
-									{
-										member->groupRole = GroupRole_Azuregos::GroupRole_Azuregos_Healer1;
-										if (healer1Count == 0)
-										{
-											myGroup->SetTargetIcon(2, member->GetObjectGuid());
-										}
-										healer1Count++;
-										continue;
-									}
-									else if (healer2Count < 4)
-									{
-										member->groupRole = GroupRole_Azuregos::GroupRole_Azuregos_Healer2;
-										healer2Count++;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_Azuregos::GroupRole_Azuregos_DPS;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_DPS)
-								{
-									member->groupRole = GroupRole_Azuregos::GroupRole_Azuregos_DPS;
-								}
-							}
-						}
-					}
-					replyStream << "Arranged";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_MoltenCore:
-				{
-					bool tank1Set = false;
-					bool tank2Set = false;
-					uint32 healerCount = 0;
-					for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-					{
-						Player* member = groupRef->getSource();
-						if (member)
-						{
-							if (!member->GetSession()->isRobotSession)
-							{
-								member->groupRole = GroupRole_MoltenCore::GroupRole_MoltenCore_DPS_Range;
-								continue;
-							}
-							else if (!member->rai)
-							{
-								continue;
-							}
-							if (Strategy_Group_MoltenCore* rs = (Strategy_Group_MoltenCore*)member->rai->strategyMap[myGroup->groupStrategyIndex])
-							{
-								rs->Reset();
-								rs->dpsDelay = 5000;
-								rs->followDistance = FOLLOW_FAR_DISTANCE;
-								switch (member->GetClass())
-								{
-								case Classes::CLASS_WARRIOR:
-								{
-									rs->followDistance = MELEE_MIN_DISTANCE;
-									break;
-								}
-								case Classes::CLASS_HUNTER:
-								{
-									break;
-								}
-								case Classes::CLASS_SHAMAN:
-								{
-									break;
-								}
-								case Classes::CLASS_PALADIN:
-								{
-									rs->followDistance = MELEE_MIN_DISTANCE;
-									break;
-								}
-								case Classes::CLASS_WARLOCK:
-								{
-									break;
-								}
-								case Classes::CLASS_PRIEST:
-								{
-									break;
-								}
-								case Classes::CLASS_ROGUE:
-								{
-									rs->followDistance = MELEE_MIN_DISTANCE;
-									break;
-								}
-								case Classes::CLASS_MAGE:
-								{
-									break;
-								}
-								case Classes::CLASS_DRUID:
-								{
-									rs->followDistance = MELEE_MIN_DISTANCE;
-									break;
-								}
-								default:
-								{
-									break;
-								}
-								}
-								if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_TANK)
-								{
-									if (!tank1Set)
-									{
-										member->groupRole = GroupRole_MoltenCore::GroupRole_MoltenCore_Tank1;
-										tank1Set = true;
-										continue;
-									}
-									else if (!tank2Set)
-									{
-										member->groupRole = GroupRole_MoltenCore::GroupRole_MoltenCore_Tank2;
-										tank2Set = true;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_MoltenCore::GroupRole_MoltenCore_DPS_Melee;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_HEALER)
-								{
-									if (healerCount < 6)
-									{
-										member->groupRole = GroupRole_MoltenCore::GroupRole_MoltenCore_Healer;
-										healerCount++;
-										continue;
-									}
-									else
-									{
-										member->groupRole = GroupRole_MoltenCore::GroupRole_MoltenCore_DPS_Range;
-									}
-								}
-								else if (rs->sb->characterType == RobotCharacterType::RobotCharacterType_DPS)
-								{
-									if (member->GetClass() == Classes::CLASS_WARRIOR || member->GetClass() == Classes::CLASS_PALADIN || member->GetClass() == Classes::CLASS_ROGUE || member->GetClass() == Classes::CLASS_DRUID)
-									{
-										member->groupRole = GroupRole_MoltenCore::GroupRole_MoltenCore_DPS_Melee;
-									}
-									else
-									{
-										member->groupRole = GroupRole_MoltenCore::GroupRole_MoltenCore_DPS_Range;
-									}
-								}
-							}
-						}
-					}
-					replyStream << "Arranged";
-					break;
-				}
-				case Strategy_Index::Strategy_Index_Group_Test:
-				{
-					break;
-				}
-				default:
-				{
-					replyStream << "Unknown strategy";
-					break;
-				}
-				}
+				replyStream << "Arranged";
 			}
 			else
 			{
@@ -3741,7 +2796,10 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 									rs->staying = false;
 									if (rs->Engage(target))
 									{
-										myGroup->SetTargetIcon(4, target->GetObjectGuid());
+										if (myGroup->GetTargetIconByOG(target->GetObjectGuid()) == -1)
+										{
+											myGroup->SetTargetIcon(7, target->GetObjectGuid());
+										}
 										rs->engageTarget = target;
 										int engageDelay = 5000;
 										if (commandVector.size() > 1)
@@ -3827,7 +2885,15 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 						{
 							continue;
 						}
-						WhisperTo(pmSender, characterTalentTabNameMap[member->GetClass()][member->GetMaxTalentCountTab()], Language::LANG_UNIVERSAL, member);
+						int whoTab = member->GetMaxTalentCountTab();
+						if (member->GetClass() == Classes::CLASS_PALADIN)
+						{
+							if (member->GetTalentCount(1) > 0)
+							{
+								whoTab = 1;
+							}
+						}
+						WhisperTo(pmSender, characterTalentTabNameMap[member->GetClass()][whoTab], Language::LANG_UNIVERSAL, member);
 					}
 				}
 			}
@@ -4028,7 +3094,10 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 									{
 										if (rs->Tank(target))
 										{
-											myGroup->SetTargetIcon(4, target->GetObjectGuid());
+											if (myGroup->GetTargetIconByOG(target->GetObjectGuid()) == -1)
+											{
+												myGroup->SetTargetIcon(7, target->GetObjectGuid());
+											}
 											rs->staying = false;
 											rs->engageTarget = target;
 											int engageDelay = 5000;
@@ -4747,21 +3816,17 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 						{
 							if (commandVector.size() > 1)
 							{
-								std::string cureCMD = commandVector.at(1);
-								if (cureCMD == "on")
+								std::string on = commandVector.at(1);
+								if (on == "on")
 								{
 									rs->aoe = true;
 								}
-								else if (cureCMD == "off")
+								else if (on == "off")
 								{
 									rs->aoe = false;
 								}
-								else
-								{
-									replyStream << "Unknown state";
-								}
 							}
-							if (rs->cure)
+							if (rs->aoe)
 							{
 								replyStream << "AOE is on";
 							}
@@ -5173,6 +4238,69 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 									{
 										break;
 									}
+									}
+								}
+								WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	else if (commandName == "crusader")
+	{
+		if (Group* myGroup = pmSender->GetGroup())
+		{
+			if (myGroup->GetLeaderGuid() == pmSender->GetObjectGuid())
+			{
+				for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
+				{
+					Player* member = groupRef->getSource();
+					if (member)
+					{
+						if (!member->GetSession()->isRobotSession)
+						{
+							continue;
+						}
+						else if (!member->rai)
+						{
+							continue;
+						}
+						if (pmReceiver)
+						{
+							if (pmReceiver->GetGUID() != member->GetGUID())
+							{
+								continue;
+							}
+						}
+						if (member->GetClass() == Classes::CLASS_PALADIN)
+						{
+							if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
+							{
+								std::ostringstream replyStream;
+								if (Script_Paladin* sp = (Script_Paladin*)rs->sb)
+								{
+									if (commandVector.size() > 1)
+									{
+										std::string on = commandVector.at(1);
+										if (on == "on")
+										{
+											sp->crusader = true;
+										}
+										else if (on == "off")
+										{
+											sp->crusader = false;
+										}
+									}
+									replyStream << "crusader is ";
+									if (sp->crusader)
+									{
+										replyStream << "on";
+									}
+									else
+									{
+										replyStream << "off";
 									}
 								}
 								WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
