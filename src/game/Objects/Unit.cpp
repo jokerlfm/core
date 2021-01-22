@@ -354,7 +354,7 @@ AutoAttackCheckResult Unit::CanAutoAttackTarget(Unit const* pVictim) const
 
 	if (GetDistance2dToCenter(pVictim) > NO_FACING_CHECKS_DISTANCE)
 	{
-		if (!HasInArc(2 * M_PI_F / 3, pVictim))
+        if (!HasInArc(pVictim, 2 * M_PI_F / 3))
 			return ATTACK_RESULT_BAD_FACING;
 	}
 
@@ -1635,7 +1635,7 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
 	DealDamage(pVictim, damageInfo->totalDamage, &cleanDamage, DIRECT_DAMAGE, SpellSchoolMask(damageInfo->subDamage[0].damageSchoolMask), nullptr, durabilityLoss);
 
 	// If this is a creature and it attacks from behind it has a probability to daze it's victim
-	if (damageInfo->totalDamage && !IsPlayer() && !((Creature*)this)->GetCharmerOrOwnerGuid() && !pVictim->HasInArc(M_PI_F, this))
+    if (damageInfo->totalDamage && !IsPlayer() && !((Creature*)this)->GetCharmerOrOwnerGuid() && !pVictim->HasInArc(this))
 	{
 		// -probability is between 0% and 40%
 		// 20% base chance
@@ -2176,7 +2176,7 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(Unit const* pVictim, WeaponAttackT
 		return MELEE_HIT_CRIT;
 	}
 
-	bool from_behind = !pVictim->HasInArc(M_PI_F, this);
+    bool from_behind = !pVictim->HasInArc(this);
 
 	if (from_behind)
 		DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "RollMeleeOutcomeAgainst: attack came from behind.");
@@ -2405,7 +2405,7 @@ void Unit::SendMeleeAttackStop(Unit* pVictim) const
 
 bool Unit::IsSpellBlocked(WorldObject* pCaster, Unit* pVictim, SpellEntry const* spellEntry, WeaponAttackType attackType) const
 {
-	if (!HasInArc(M_PI_F, pCaster))
+    if (!HasInArc(pCaster))
 		return false;
 
 	if (spellEntry)
@@ -2878,7 +2878,7 @@ bool Unit::IsBehindTarget(Unit const* pTarget, bool strict) const
 		}
 	}
 
-	return !pTarget->HasInArc(M_PI_F, this);
+    return !pTarget->HasInArc(this);
 }
 
 bool Unit::CantPathToVictim() const
@@ -4691,6 +4691,20 @@ Unit* Unit::GetOwner() const
 	return nullptr;
 }
 
+// Optimized version when we only want creature owner.
+// Check guid type before doing lookup for unit.
+Creature* Unit::GetOwnerCreature() const
+{
+    if (!IsInWorld())
+        return nullptr;
+
+    if (ObjectGuid ownerid = GetOwnerGuid())
+        if (ownerid.IsCreature())
+            return GetMap()->GetCreature(ownerid);
+
+    return nullptr;
+}
+
 Unit* Unit::GetCharmer() const
 {
 	if (ObjectGuid charmerid = GetCharmerGuid())
@@ -5519,17 +5533,18 @@ void Unit::SetInCombatState(bool bPvP, Unit* pEnemy)
 
 	SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IN_COMBAT);
 
-	if (IsCharmed() || (!IsPlayer() && ((Creature*)this)->IsPet()))
+    if (IsCharmed() || (IsCreature() && ((Creature*)this)->IsPet()))
 		SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PET_IN_COMBAT);
+
 	// set pet in combat
 	if (Pet* pet = GetPet())
+    {
 		if (!pet->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PET_IN_COMBAT))
 		{
-			pet->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PET_IN_COMBAT);
-
 			if (IsPlayer() && pet->IsAlive() && pEnemy)
 				pet->AI()->OwnerAttacked(pEnemy);
 		}
+    }
 
 	// interrupt all delayed non-combat casts
 	if (!wasInCombat)
@@ -6155,7 +6170,7 @@ bool Unit::CanDetectStealthOf(Unit const* target, float distance, bool* alert) c
 	float visibleDistance = IsPlayer() ? MaxStealthDetectRange : ((Creature*)this)->GetAttackDistance(target);
 
 	//Always invisible from back (when stealth detection is on), also filter max distance cases
-	bool isInFront = distance < visibleDistance&& HasInArc(M_PI_F, target);
+    bool isInFront = distance < visibleDistance && HasInArc(target);
 	if (!isInFront)
 		return false;
 
@@ -8214,7 +8229,7 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, uint32 procFlag, 
 			continue;
 
 		SpellProcEventEntry const* spellProcEvent = nullptr;
-		if (!IsTriggeredAtSpellProcEvent(pTarget, itr.second, procSpell, procFlag, procExtra, attType, isVictim, spellProcEvent))
+        if (!IsTriggeredAtSpellProcEvent(pTarget, itr.second, procSpell, procFlag, procExtra, attType, isVictim, spellProcEvent, (spell && spell->IsTriggeredByAura())))
 			continue;
 
 		itr.second->SetInUse(true);                        // prevent holder deletion
@@ -8293,8 +8308,12 @@ void Unit::SendPetAIReaction()
 
 void Unit::StopMoving(bool force)
 {
+    if (!force && movespline->IsUninterruptible())
+        return;
+
 	ClearUnitState(UNIT_STAT_MOVING);
 	RemoveUnitMovementFlag(MOVEFLAG_MASK_MOVING);
+
 	// not need send any packets if not in world
 	if (!IsInWorld())
 		return;
@@ -8391,6 +8410,8 @@ void Unit::ModConfuseSpell(bool apply, ObjectGuid casterGuid, uint32 spellId, Mo
 
 		if (IsCreature())
 			SetTargetGuid(ObjectGuid());
+        else if (ObjectGuid lootGuid = static_cast<Player*>(this)->GetLootGuid())
+            static_cast<Player*>(this)->GetSession()->DoLootRelease(lootGuid);
 	}
 	else
 	{
@@ -8692,7 +8713,7 @@ Unit* Unit::SelectRandomUnfriendlyTarget(Unit* except /*= nullptr*/, float radiu
 	// remove not LoS targets
 	for (std::list<Unit*>::iterator tIter = targets.begin(); tIter != targets.end();)
 	{
-		if ((!IsWithinLOSInMap(*tIter)) || (inFront && !this->HasInArc(M_PI_F / 2, *tIter)) || (isValidAttackTarget && !IsValidAttackTarget(*tIter)))
+        if ((!IsWithinLOSInMap(*tIter)) || (inFront && !this->HasInArc(*tIter, M_PI_F / 2)) || (isValidAttackTarget && !IsValidAttackTarget(*tIter)))
 		{
 			std::list<Unit*>::iterator tIter2 = tIter;
 			++tIter;
@@ -9072,6 +9093,16 @@ void Unit::MonsterMoveWithSpeed(float x, float y, float z, float o, float speed,
 {
 	Movement::MoveSplineInit init(*this, "MonsterMoveWithSpeed");
 	init.MoveTo(x, y, z, options);
+    if (options & MOVE_WALK_MODE)
+        init.SetWalk(true);
+    if (options & MOVE_RUN_MODE)
+        init.SetWalk(false);
+    if (options & MOVE_FLY_MODE)
+        init.SetFly();
+    if (options & MOVE_FALLING)
+        init.SetFall();
+    if (options & MOVE_CYCLIC)
+        init.SetCyclic();
 	if (speed > 0.0f)
 		init.SetVelocity(speed);
 	if (o > -7.0f)

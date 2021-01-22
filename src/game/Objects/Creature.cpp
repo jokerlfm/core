@@ -547,7 +547,7 @@ uint32 Creature::ChooseDisplayId(CreatureInfo const* cinfo, CreatureData const* 
         return eventData->display_id;
     }
 
-    // Use creature display id explicit, override template (creature.display_id)
+    // Use creature spawn display id explicit, override template (creature.display_id)
     if (addon && addon->display_id)
     {
         if (scale)
@@ -555,10 +555,11 @@ uint32 Creature::ChooseDisplayId(CreatureInfo const* cinfo, CreatureData const* 
         return addon->display_id;
     }
 
-    // use defaults from the template
+    // Use defaults from the template
     int8 displayIndex = -1;
     if (cinfo->display_total_probability)
     {
+        // All probabilities are whole integers, even though they are sent as floats in packet on classic
         uint32 const roll = urand(1, cinfo->display_total_probability);
         uint32 sum = 0;
 
@@ -580,9 +581,8 @@ uint32 Creature::ChooseDisplayId(CreatureInfo const* cinfo, CreatureData const* 
             sum += currentChance;
         }
     }
-    else
+    else // Equal chance for all
     {
-        // display id selected here may be replaced with other_gender using own function
         uint32 maxDisplayId = 0;
         for (; maxDisplayId < MAX_DISPLAY_IDS_PER_CREATURE && cinfo->display_id[maxDisplayId]; ++maxDisplayId);
 
@@ -590,7 +590,7 @@ uint32 Creature::ChooseDisplayId(CreatureInfo const* cinfo, CreatureData const* 
             displayIndex = urand(0, maxDisplayId - 1);
     }
 
-    // fail safe, we use creature entry 1 and make error
+    // Fail safe, use first display id present in dbc, shouldn't happen
     if (displayIndex < 0)
     {
         sLog.outErrorDb("Creature::ChooseDisplayId can not select native display id for creature entry %u, placeholder model will be used.", cinfo->entry);
@@ -1872,7 +1872,7 @@ void Creature::SetDeathState(DeathState s)
         }
 
         // return, since we promote to CORPSE_FALLING. CORPSE_FALLING is promoted to CORPSE at next update.
-        if (CanFly() && FallGround())
+        if (!HasCreatureState(CSTATE_DESPAWNING) && CanFly() && FallGround())
             return;
 
         Unit::SetDeathState(CORPSE);
@@ -1967,6 +1967,8 @@ void Creature::Respawn()
 
 void Creature::ForcedDespawn(uint32 timeMSToDespawn)
 {
+    AddCreatureState(CSTATE_DESPAWNING);
+
     if (timeMSToDespawn)
     {
         ForcedDespawnDelayEvent *pEvent = new ForcedDespawnDelayEvent(*this);
@@ -1980,6 +1982,7 @@ void Creature::ForcedDespawn(uint32 timeMSToDespawn)
 
     RemoveCorpse();
     SetHealth(0);                                           // just for nice GM-mode view
+    ClearCreatureState(CSTATE_DESPAWNING);
 }
 
 bool Creature::IsImmuneToSpell(SpellEntry const* spellInfo, bool castOnSelf) const
@@ -2815,8 +2818,14 @@ Unit* Creature::SelectAttackingTarget(AttackingTarget target, uint32 position, S
 
 bool Creature::IsInEvadeMode() const
 {
+    if (IsPet())
+        if (Creature const* pOwner = GetOwnerCreature())
+            if (pOwner->IsInEvadeMode())
+                return true;
+
     if (IsEvadeBecauseTargetNotReachable())
         return true;
+
     return !i_motionMaster.empty() && i_motionMaster.GetCurrentMovementGeneratorType() == HOME_MOTION_TYPE;
 }
 
@@ -3206,6 +3215,10 @@ void Creature::OnEnterCombat(Unit* pWho, bool notInCombat)
 
         if (pWho->IsPlayer() && CanSummonGuards())
             sGuardMgr.SummonGuard(this, static_cast<Player*>(pWho));
+
+        if (IsPet())
+            if (Creature* pOwner = GetOwnerCreature())
+                SetLastLeashExtensionTimePtr(pOwner->GetLastLeashExtensionTimePtr());
     }
 }
 
@@ -3504,20 +3517,16 @@ SpellCastResult Creature::TryToCast(Unit* pTarget, SpellEntry const* pSpellInfo,
         }
 
         // If the spell requires to be behind the target.
-        if (pSpellInfo->Custom & SPELL_CUSTOM_BEHIND_TARGET && pTarget->HasInArc(M_PI_F, this))
+        if (pSpellInfo->Custom & SPELL_CUSTOM_BEHIND_TARGET && pTarget->HasInArc(this))
             return SPELL_FAILED_UNIT_NOT_BEHIND;
 
-        if (!pSpellInfo->IsAreaOfEffectSpell())
-        {
-            // If the spell requires the target having a specific power type.
-            if (!pSpellInfo->IsTargetPowerTypeValid(pTarget->GetPowerType()))
-                return SPELL_FAILED_UNKNOWN;
+        // If the spell requires the target having a specific power type.
+        if (!pSpellInfo->IsAreaOfEffectSpell() && !pSpellInfo->IsTargetPowerTypeValid(pTarget->GetPowerType()))
+            return SPELL_FAILED_UNKNOWN;
 
-            // No point in casting if target is immune.
-            if (!pSpellInfo->IsPositiveSpell() &&
-                pTarget->IsImmuneToDamage(pSpellInfo->GetSpellSchoolMask(), pSpellInfo))
-                return SPELL_FAILED_IMMUNE;
-        }
+        // No point in casting if target is immune.
+        if ((pTarget != this) && !pSpellInfo->IsPositiveSpell() && pTarget->IsImmuneToDamage(pSpellInfo->GetSpellSchoolMask(), pSpellInfo))
+            return SPELL_FAILED_IMMUNE;
 
         // Mind control abilities can't be used with just 1 attacker or mob will reset.
         if ((GetThreatManager().getThreatList().size() == 1) && pSpellInfo->IsCharmSpell())

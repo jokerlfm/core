@@ -691,6 +691,8 @@ void Spell::prepareDataForTriggerSystem()
         m_canTrigger = true;          // Normal cast - can trigger
     else if (!m_triggeredByAuraSpell)
         m_canTrigger = true;          // Triggered from SPELL_EFFECT_TRIGGER_SPELL - can trigger
+    else if (m_spellInfo->HasAttribute(SPELL_ATTR_EX2_TRIGGERED_CAN_TRIGGER_PROC) || m_spellInfo->HasAttribute(SPELL_ATTR_EX3_TRIGGERED_CAN_TRIGGER_SPECIAL))
+        m_canTrigger = true;          // Spells with these special attributes can trigger even if triggeredByAuraSpell
 
     if (!m_canTrigger)                // Exceptions (some periodic triggers)
     {
@@ -1628,7 +1630,7 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
                     (m_spellInfo->Id == 6358 || // Exception to fix succubus seduction.
                      m_caster->IsVisibleForOrDetect(unit, unit, false)))
             {
-                if (!m_spellInfo->HasAttribute(SPELL_ATTR_EX3_NO_INITIAL_AGGRO))
+                if (!m_spellInfo->HasAttribute(SPELL_ATTR_EX3_NO_INITIAL_AGGRO) && !IsTriggeredByAura())
                 {
                     // use speedup check to avoid re-remove after above lines
                     if (m_spellInfo->AttributesEx & SPELL_ATTR_EX_NOT_BREAK_STEALTH)
@@ -2734,7 +2736,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                             break;
                     }
 
-                    if (m_caster->HasInArc(arc, itr, angle))
+                    if (m_caster->HasInArc(itr, arc, angle))
                         targetUnitMap.push_back(itr);                
                 }
 
@@ -4347,7 +4349,7 @@ void Spell::HandleAddTargetTriggerAuras()
                 SpellEffectIndex auraSpellIdx = targetTrigger->GetEffIndex();
                 // Calculate chance at that moment (can be depend for example from combo points)
                 int32 auraBasePoints = targetTrigger->GetBasePoints();
-                int32 chance = m_casterUnit->CalculateSpellDamage(target, auraSpellInfo, auraSpellIdx, &auraBasePoints);
+                int32 chance = m_casterUnit->CalculateSpellEffectValue(target, auraSpellInfo, auraSpellIdx, &auraBasePoints);
                 if ((m_casterUnit->IsPlayer() && m_casterUnit->ToPlayer()->HasCheatOption(PLAYER_CHEAT_ALWAYS_PROC)) || roll_chance_i(chance))
                     m_casterUnit->CastSpell(target, auraSpellInfo->EffectTriggerSpell[auraSpellIdx], true, nullptr, targetTrigger);
             }
@@ -4448,7 +4450,7 @@ void Spell::finish(bool ok)
         if (Unit* const pTarget = m_targets.getUnitTarget())
         {
             SpellEntry const* DRLaunchEntry = sSpellMgr.GetSpellEntry(13279);
-            int32 DRdamage = m_caster->CalculateSpellDamage(pTarget, DRLaunchEntry, EFFECT_INDEX_0, m_currentBasePoints, nullptr);
+            int32 DRdamage = m_caster->CalculateSpellEffectValue(pTarget, DRLaunchEntry, EFFECT_INDEX_0, m_currentBasePoints, nullptr);
             m_caster->CastCustomSpell(pTarget, 13279, &DRdamage, nullptr, nullptr, true, m_CastItem);
         }
     }
@@ -5592,7 +5594,7 @@ SpellCastResult Spell::CheckCast(bool strict)
 
                 // auto selection spell rank implemented in WorldSession::HandleCastSpellOpcode
                 // this case can be triggered if rank not found (too low-level target for first rank)
-                if (m_caster->IsPlayer() && !m_CastItem && !m_IsTriggeredSpell)
+                if (m_caster->IsPlayer() && !m_CastItem)
                 {
                     // spell expected to be auto-downranking in cast handle, so must be same
                     if (m_spellInfo != sSpellMgr.SelectAuraRankForLevel(m_spellInfo, target->GetLevel()))
@@ -5759,7 +5761,7 @@ SpellCastResult Spell::CheckCast(bool strict)
         }
 
         //Target must be facing you.
-        if ((m_spellInfo->Attributes == 0x150010) && !target->HasInArc(M_PI_F, m_caster))
+        if ((m_spellInfo->Attributes == 0x150010) && !target->HasInArc(m_caster))
         {
             SendInterrupted(2);
             return SPELL_FAILED_NOT_INFRONT;
@@ -6083,7 +6085,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                     if (m_targets.getUnitTarget() &&
                        !m_caster->IsFriendlyTo(m_targets.getUnitTarget()) &&
                        (m_caster->GetDistance2dToCenter(m_targets.getUnitTarget()) > NO_FACING_CHECKS_DISTANCE) &&
-                       !m_caster->HasInArc(M_PI_F, m_targets.getUnitTarget()))
+                       !m_caster->HasInArc(m_targets.getUnitTarget()))
                         return SPELL_FAILED_UNIT_NOT_INFRONT;
                 }
                 else if (m_spellInfo->Id == 13278) // Gnomish Death Ray
@@ -7229,7 +7231,7 @@ SpellCastResult Spell::CheckRange(bool strict)
 
                 // Requires target forward for these spells
                 if ((m_caster->GetDistance2dToCenter(target) > NO_FACING_CHECKS_DISTANCE) &&
-                    !m_caster->HasInArc(M_PI_F, target))
+                    !m_caster->HasInArc(target))
                     return SPELL_FAILED_UNIT_NOT_INFRONT;
 
                 float range_mod = 1.0f;
@@ -7283,7 +7285,7 @@ SpellCastResult Spell::CheckRange(bool strict)
         if (m_caster->IsPlayer() &&
            (m_spellInfo->Custom & SPELL_CUSTOM_FACE_TARGET) &&
            (m_caster->GetDistance2dToCenter(target) > NO_FACING_CHECKS_DISTANCE) &&
-           !m_caster->HasInArc(M_PI_F, target))
+           !m_caster->HasInArc(target))
             return SPELL_FAILED_UNIT_NOT_INFRONT;
     }
 
@@ -7994,8 +7996,15 @@ CurrentSpellTypes Spell::GetCurrentContainer() const
 
 bool Spell::CheckTarget(Unit* target, SpellEffectIndex eff)
 {
-    if (m_casterUnit && target != m_caster && m_spellInfo->IsPositiveSpell())
+    if (m_casterUnit && target != m_casterUnit && m_spellInfo->IsPositiveSpell())
     {
+        // prevent buffing low level players with group wide buffs
+        if (m_casterUnit->IsPlayer() && !m_CastItem && !m_IsTriggeredSpell && target != m_targets.getUnitTarget())
+        {
+            if (m_spellInfo != sSpellMgr.SelectAuraRankForLevel(m_spellInfo, target->GetLevel()))
+                return false;
+        }
+
         Player* casterOwner = m_casterUnit->GetCharmerOrOwnerPlayerOrPlayerItself();
         Player* targetOwner = target->GetCharmerOrOwnerPlayerOrPlayerItself();
         if (targetOwner && casterOwner != targetOwner && targetOwner->duel && casterOwner && !casterOwner->IsInDuelWith(targetOwner))
@@ -8074,7 +8083,7 @@ bool Spell::CheckTarget(Unit* target, SpellEffectIndex eff)
             break;
         default:                                            // normal case
             // Get GO cast coordinates if original caster -> GO
-            if (target != m_caster)
+            if (target != m_caster && !IsIgnoreLosTarget(m_spellInfo->EffectImplicitTargetA[eff]))
                 if (WorldObject* caster = GetCastingObject())
                     if (!(m_spellInfo->AttributesEx2 & SPELL_ATTR_EX2_IGNORE_LOS) && !target->IsWithinLOSInMap(caster))
                         return false;
@@ -8617,7 +8626,7 @@ void Spell::OnSpellLaunch()
 
     unitTarget = m_targets.getUnitTarget();
 
-    // Gestion de la charge
+    // Charge handled here instead of in effect handler
     if (!unitTarget || !unitTarget->IsInWorld())
         return;
     bool isCharge = false;
