@@ -2870,7 +2870,15 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 	{
 		if (pmReceiver)
 		{
-			WhisperTo(pmSender, characterTalentTabNameMap[pmReceiver->GetClass()][pmReceiver->GetMaxTalentCountTab()], Language::LANG_UNIVERSAL, pmReceiver);
+			int whoTab = pmReceiver->GetMaxTalentCountTab();
+			if (pmReceiver->GetClass() == Classes::CLASS_PALADIN)
+			{
+				if (pmReceiver->GetTalentCount(1) > 0)
+				{
+					whoTab = 1;
+				}
+			}
+			WhisperTo(pmSender, characterTalentTabNameMap[pmReceiver->GetClass()][whoTab], Language::LANG_UNIVERSAL, pmReceiver);
 		}
 		else
 		{

@@ -107,7 +107,7 @@ bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float p
 	{
 		if (me->IsWithinLOSInMap(chaseTarget))
 		{
-			if (!me->HasInArc(M_PI / 4, chaseTarget))
+			if (!me->HasInArc(chaseTarget, M_PI / 4))
 			{
 				me->SetFacingToObject(chaseTarget);
 			}
@@ -279,7 +279,7 @@ void RobotMovement::Update(uint32 pmDiff)
 				{
 					me->StopMoving();
 				}
-				if (!me->HasInArc(M_PI / 4, chaseTarget))
+				if (!me->HasInArc(chaseTarget, M_PI / 4))
 				{
 					me->SetFacingToObject(chaseTarget);
 				}
