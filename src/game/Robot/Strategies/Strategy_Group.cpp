@@ -682,7 +682,7 @@ bool Strategy_Group::DPS()
 		if (Group* myGroup = me->GetGroup())
 		{
 			// icon first 
-			if (Unit* target = me->GetUnitByOG(myGroup->GetOGByTargetIcon(4)))
+			if (Unit* target = me->GetUnitByOG(myGroup->GetOGByTargetIcon(7)))
 			{
 				if (sb->DPS(target, Chasing(), aoe))
 				{
@@ -694,7 +694,7 @@ bool Strategy_Group::DPS()
 			{
 				if (Unit* target = leader->GetSelectedUnit())
 				{
-					if (myGroup->GetTargetIconByOG(target->GetObjectGuid()) != -1)
+					if (myGroup->GetTargetIconByOG(target->GetObjectGuid()) == -1)
 					{
 						if (sb->DPS(target, Chasing(), aoe))
 						{
@@ -706,7 +706,7 @@ bool Strategy_Group::DPS()
 			// my target 
 			if (Unit* target = me->GetSelectedUnit())
 			{
-				if (myGroup->GetTargetIconByOG(target->GetObjectGuid()) != -1)
+				if (myGroup->GetTargetIconByOG(target->GetObjectGuid()) == -1)
 				{
 					if (sb->DPS(target, Chasing(), aoe))
 					{
@@ -727,7 +727,7 @@ bool Strategy_Group::DPS()
 						{
 							if (me->GetDistance(eachAttacker) < ATTACK_RANGE_LIMIT)
 							{
-								if (myGroup->GetTargetIconByOG(eachAttacker->GetObjectGuid()) != -1)
+								if (myGroup->GetTargetIconByOG(eachAttacker->GetObjectGuid()) == -1)
 								{
 									uint32 eachHealth = eachAttacker->GetHealth();
 									if (!lowestAttacker)
@@ -772,13 +772,25 @@ bool Strategy_Group::Tank()
 	if (Group* myGroup = me->GetGroup())
 	{
 		// icon ot 
-		if (Unit* target = me->GetUnitByOG(myGroup->GetOGByTargetIcon(4)))
+		if (Unit* target = me->GetUnitByOG(myGroup->GetOGByTargetIcon(7)))
 		{
-			if (target->GetTargetGuid() != me->GetObjectGuid())
+			if (!target->GetTargetGuid().IsEmpty())
 			{
-				if (sb->Tank(target, Chasing(), aoe))
+				if (target->GetTargetGuid() != me->GetObjectGuid())
 				{
-					return true;
+					for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
+					{
+						if (Player* member = groupRef->getSource())
+						{
+							if (target->GetTargetGuid() == member->GetObjectGuid())
+							{
+								if (sb->Tank(target, Chasing(), aoe))
+								{
+									return true;
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -787,14 +799,25 @@ bool Strategy_Group::Tank()
 		{
 			if (Unit* eachAttacker = gaIT->second)
 			{
-				if (eachAttacker->GetTargetGuid() != me->GetObjectGuid())
+				if (!eachAttacker->GetTargetGuid().IsEmpty())
 				{
-					if (me->GetDistance(eachAttacker) < FOLLOW_NEAR_DISTANCE)
+					if (eachAttacker->GetTargetGuid() != me->GetObjectGuid())
 					{
-						if (sb->Tank(eachAttacker, Chasing(), aoe))
+						if (me->GetDistance(eachAttacker) < FOLLOW_MAX_DISTANCE)
 						{
-							myGroup->SetTargetIcon(7, eachAttacker->GetObjectGuid());
-							return true;
+							for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
+							{
+								if (Player* member = groupRef->getSource())
+								{
+									if (eachAttacker->GetTargetGuid() == member->GetObjectGuid())
+									{
+										if (sb->Tank(eachAttacker, Chasing(), aoe))
+										{
+											return true;
+										}
+									}
+								}
+							}
 						}
 					}
 				}
@@ -805,21 +828,32 @@ bool Strategy_Group::Tank()
 		{
 			if (Unit* eachAttacker = gaIT->second)
 			{
-				if (eachAttacker->GetTargetGuid() != me->GetObjectGuid())
+				if (!eachAttacker->GetTargetGuid().IsEmpty())
 				{
-					if (me->GetDistance(eachAttacker) < ATTACK_RANGE_LIMIT)
+					if (eachAttacker->GetTargetGuid() != me->GetObjectGuid())
 					{
-						if (sb->Tank(eachAttacker, Chasing(), aoe))
+						if (me->GetDistance(eachAttacker) < FOLLOW_MAX_DISTANCE)
 						{
-							myGroup->SetTargetIcon(7, eachAttacker->GetObjectGuid());
-							return true;
+							for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
+							{
+								if (Player* member = groupRef->getSource())
+								{
+									if (eachAttacker->GetTargetGuid() == member->GetObjectGuid())
+									{
+										if (sb->Tank(eachAttacker, Chasing(), aoe))
+										{
+											return true;
+										}
+									}
+								}
+							}
 						}
 					}
 				}
 			}
 		}
 		// icon 
-		if (Unit* target = me->GetUnitByOG(myGroup->GetOGByTargetIcon(4)))
+		if (Unit* target = me->GetUnitByOG(myGroup->GetOGByTargetIcon(7)))
 		{
 			if (sb->Tank(target, Chasing(), aoe))
 			{
@@ -831,7 +865,7 @@ bool Strategy_Group::Tank()
 		{
 			if (Unit* target = leader->GetSelectedUnit())
 			{
-				if (myGroup->GetTargetIconByOG(target->GetObjectGuid()) != -1)
+				if (myGroup->GetTargetIconByOG(target->GetObjectGuid()) == -1)
 				{
 					if (sb->Tank(target, Chasing(), aoe))
 					{
@@ -844,7 +878,7 @@ bool Strategy_Group::Tank()
 		// my target 
 		if (Unit* target = me->GetSelectedUnit())
 		{
-			if (myGroup->GetTargetIconByOG(target->GetObjectGuid()) != -1)
+			if (myGroup->GetTargetIconByOG(target->GetObjectGuid()) == -1)
 			{
 				if (sb->Tank(target, Chasing(), aoe))
 				{
@@ -867,7 +901,7 @@ bool Strategy_Group::Tank()
 						float eachDistance = me->GetDistance(eachAttacker);
 						if (eachDistance < nearestDistance)
 						{
-							if (myGroup->GetTargetIconByOG(eachAttacker->GetObjectGuid()) != -1)
+							if (myGroup->GetTargetIconByOG(eachAttacker->GetObjectGuid()) == -1)
 							{
 								nearestDistance = eachDistance;
 								nearestAttacker = eachAttacker;

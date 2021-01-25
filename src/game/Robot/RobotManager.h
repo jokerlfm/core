@@ -40,11 +40,11 @@
 #endif
 
 #ifndef MELEE_MIN_DISTANCE
-# define MELEE_MIN_DISTANCE 1.0f
+# define MELEE_MIN_DISTANCE 0.5f
 #endif
 
 #ifndef MELEE_MAX_DISTANCE
-# define MELEE_MAX_DISTANCE 3.0f
+# define MELEE_MAX_DISTANCE 2.0f
 #endif
 
 #ifndef RANGED_NORMAL_DISTANCE
@@ -52,15 +52,15 @@
 #endif
 
 #ifndef RANGED_FAR_DISTANCE
-# define RANGED_FAR_DISTANCE 30.0f
+# define RANGED_FAR_DISTANCE 29.0f
 #endif
 
 #ifndef RANGED_MAX_DISTANCE
-# define RANGED_MAX_DISTANCE 45.0f
+# define RANGED_MAX_DISTANCE 44.0f
 #endif
 
 #ifndef HEAL_MAX_DISTANCE
-# define HEAL_MAX_DISTANCE 40.0f
+# define HEAL_MAX_DISTANCE 39.0f
 #endif
 
 #ifndef ATTACK_RANGE_LIMIT
