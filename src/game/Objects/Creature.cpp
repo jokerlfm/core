@@ -2555,24 +2555,7 @@ bool Creature::MeetsSelectAttackingRequirement(Unit* pTarget, SpellEntry const* 
         return false;
 
     if (pSpellInfo)
-    {
-        switch (pSpellInfo->rangeIndex)
-        {
-            case SPELL_RANGE_IDX_SELF_ONLY:
-                return false;
-            case SPELL_RANGE_IDX_ANYWHERE:
-                return true;
-            case SPELL_RANGE_IDX_COMBAT:
-                return CanReachWithMeleeAutoAttack(pTarget);
-        }
-
-        SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(pSpellInfo->rangeIndex);
-        float max_range = Spells::GetSpellMaxRange(srange);
-        float min_range = Spells::GetSpellMinRange(srange);
-        float dist = GetCombatDistance(pTarget);
-
-        return dist < max_range && dist >= min_range;
-    }
+        return pSpellInfo->IsTargetInRange(this, pTarget);
 
     return true;
 }
@@ -3568,7 +3551,7 @@ bool Creature::_IsTargetAcceptable(Unit const* target) const
 
     // if the target cannot be attacked, the target is not acceptable
     if (IsFriendlyTo(target)
-            || !target->IsAttackableByAOE()
+            || !target->IsTargetable(true, IsCharmerOrOwnerPlayerOrPlayerItself())
             || target->HasUnitState(UNIT_STAT_DIED))
         return false;
 
