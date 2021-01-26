@@ -8,7 +8,7 @@ Script_Paladin::Script_Paladin(Player* pmMe) :Script_Base(pmMe)
 {
 	blessingType = PaladinBlessingType::PaladinBlessingType_Kings;
 	auraType = PaladinAuraType::PaladinAuraType_Retribution;
-	crusader = false;
+	sealType = PaladinSealType::PaladinSealType_Righteousness;
 }
 
 void Script_Paladin::Reset()
@@ -38,6 +38,8 @@ void Script_Paladin::Reset()
 		break;
 	}
 	}
+	sealType = PaladinSealType::PaladinSealType_Righteousness;
+	Script_Base::Reset();
 }
 
 bool Script_Paladin::Heal(Unit* pmTarget, bool pmCure)
@@ -95,13 +97,16 @@ bool Script_Paladin::Heal_Holy(Unit* pmTarget, bool pmCure)
 	{
 		if (!sRobotManager->HasAura(pmTarget, "Forbearance"))
 		{
-			if (CastSpell(pmTarget, "Blessing of Protection", PALADIN_RANGE_DISTANCE))
+			if (pmTarget->IsInCombat())
 			{
-				return true;
-			}
-			if (CastSpell(pmTarget, "Lay on Hands", PALADIN_HEAL_DISTANCE))
-			{
-				return true;
+				if (CastSpell(pmTarget, "Blessing of Protection", PALADIN_RANGE_DISTANCE))
+				{
+					return true;
+				}
+				if (CastSpell(pmTarget, "Lay on Hands", PALADIN_HEAL_DISTANCE))
+				{
+					return true;
+				}
 			}
 		}
 	}
@@ -351,7 +356,21 @@ bool Script_Paladin::DPS_Common(Unit* pmTarget, bool pmChase)
 			return true;
 		}
 	}
-	if (crusader)
+	switch (sealType)
+	{
+	case PaladinSealType::PaladinSealType_Righteousness:
+	{
+		if (CastSpell(me, "Seal of Righteousness", MELEE_MAX_DISTANCE, true))
+		{
+			return true;
+		}
+		if (CastSpell(pmTarget, "Judgement", MELEE_MAX_DISTANCE))
+		{
+			return true;
+		}
+		break;
+	}
+	case PaladinSealType::PaladinSealType_Crusader:
 	{
 		if (!sRobotManager->HasAura(pmTarget, "Judgement of the Crusader"))
 		{
@@ -367,17 +386,39 @@ bool Script_Paladin::DPS_Common(Unit* pmTarget, bool pmChase)
 				return true;
 			}
 		}
+		if (CastSpell(pmTarget, "Judgement", MELEE_MAX_DISTANCE))
+		{
+			return true;
+		}
+		break;
 	}
-	else
+	case PaladinSealType::PaladinSealType_Justice:
+	{
+		if (CastSpell(me, "Seal of Justice", MELEE_MAX_DISTANCE, true))
+		{
+			return true;
+		}
+		if (!sRobotManager->HasAura(pmTarget, "Judgement of the Justice"))
+		{
+			if (CastSpell(pmTarget, "Judgement", MELEE_MAX_DISTANCE))
+			{
+				return true;
+			}
+		}
+		break;
+	}
+	default:
 	{
 		if (CastSpell(me, "Seal of Righteousness", MELEE_MAX_DISTANCE, true))
 		{
 			return true;
 		}
+		if (CastSpell(pmTarget, "Judgement", MELEE_MAX_DISTANCE))
+		{
+			return true;
+		}
+		break;
 	}
-	if (CastSpell(pmTarget, "Judgement", MELEE_MAX_DISTANCE))
-	{
-		return true;
 	}
 
 	return true;

@@ -36,6 +36,13 @@ enum PaladinBlessingType :uint32
     PaladinBlessingType_Wisdom = 2,
 };
 
+enum PaladinSealType :uint32
+{
+    PaladinSealType_Righteousness = 0,
+    PaladinSealType_Crusader = 1,
+    PaladinSealType_Justice = 2,
+};
+
 class Script_Paladin :public Script_Base
 {
 public:    
@@ -54,6 +61,6 @@ public:
 
     uint32 auraType;
     uint32 blessingType;
-    bool crusader;
+    uint32 sealType;
 };
 #endif

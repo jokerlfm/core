@@ -957,23 +957,23 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 				if (strategyName == "group")
 				{
 					myGroup->groupStrategyIndex = Strategy_Index::Strategy_Index_Group;
+					for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
+					{
+						Player* member = groupRef->getSource();
+						if (member)
+						{
+							if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
+							{
+								rs->Reset();
+								rs->sb->Reset();
+							}
+						}
+					}
 					replyStream << "Strategy set to group";
 				}
 				else
 				{
 					replyStream << "Unknown strategy";
-				}
-				for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-				{
-					Player* member = groupRef->getSource();
-					if (member)
-					{
-						if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
-						{
-							rs->Reset();
-							rs->sb->Reset();
-						}
-					}
 				}
 			}
 			else
@@ -1007,6 +1007,7 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 			if (myGroup->GetLeaderGuid() == pmPlayer->GetObjectGuid())
 			{
 				bool paladinCrusader = false;
+				bool paladinJustice = false;
 
 				bool paladinAura_concentration = false;
 				bool paladinAura_devotion = false;
@@ -1056,7 +1057,7 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 								member->groupRole = GroupRole::GroupRole_DPS;
 							}
 							rs->sb->Reset();
-							rs->sb->rti = -1;
+							rs->Reset();
 							if (member->GetClass() == Classes::CLASS_PALADIN)
 							{
 								if (Script_Paladin* sp = (Script_Paladin*)rs->sb)
@@ -1065,8 +1066,13 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 									{
 										if (!paladinCrusader)
 										{
-											sp->crusader = true;
+											sp->sealType = PaladinSealType::PaladinSealType_Crusader;
 											paladinCrusader = true;
+										}
+										else if (!paladinJustice)
+										{
+											sp->sealType = PaladinSealType::PaladinSealType_Justice;
+											paladinJustice = true;
 										}
 									}
 									switch (sp->blessingType)
@@ -1414,7 +1420,6 @@ void RobotManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 									}
 								}
 							}
-							rs->Reset();
 						}
 					}
 				}
@@ -2487,7 +2492,8 @@ void RobotManager::HandlePacket(WorldSession* pmSession, WorldPacket pmPacket)
 					{
 						if (Strategy_Group* rs = (Strategy_Group*)me->rai->strategyMap[myGroup->groupStrategyIndex])
 						{
-							rs->sb->Reset();
+							rs->sb->rm->ResetMovement();
+							rs->sb->ClearTarget();
 						}
 					}
 				}
@@ -4256,7 +4262,7 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 			}
 		}
 	}
-	else if (commandName == "crusader")
+	else if (commandName == "ps")
 	{
 		if (Group* myGroup = pmSender->GetGroup())
 		{
@@ -4291,24 +4297,45 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 								{
 									if (commandVector.size() > 1)
 									{
-										std::string on = commandVector.at(1);
-										if (on == "on")
+										std::string auratypeName = commandVector.at(1);
+										if (auratypeName == "righteousness")
 										{
-											sp->crusader = true;
+											sp->sealType = PaladinSealType::PaladinSealType_Righteousness;
 										}
-										else if (on == "off")
+										else if (auratypeName == "justice")
 										{
-											sp->crusader = false;
+											sp->sealType = PaladinSealType::PaladinSealType_Justice;
+										}
+										else if (auratypeName == "crusader")
+										{
+											sp->sealType = PaladinSealType::PaladinSealType_Crusader;
+										}
+										else
+										{
+											replyStream << "Unknown type";
 										}
 									}
-									replyStream << "crusader is ";
-									if (sp->crusader)
+									switch (sp->sealType)
 									{
-										replyStream << "on";
+									case PaladinSealType::PaladinSealType_Righteousness:
+									{
+										replyStream << "righteousness";
+										break;
 									}
-									else
+									case PaladinSealType::PaladinSealType_Crusader:
 									{
-										replyStream << "off";
+										replyStream << "crusader";
+										break;
+									}
+									case PaladinSealType::PaladinSealType_Justice:
+									{
+										replyStream << "justice";
+										break;
+									}
+									default:
+									{
+										break;
+									}
 									}
 								}
 								WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);

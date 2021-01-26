@@ -1003,6 +1003,7 @@ bool Script_Base::Eat()
 	{
 		if (UseItem(pFood, me))
 		{
+			rm->ResetMovement();
 			result = true;
 		}
 	}
@@ -1061,6 +1062,7 @@ bool Script_Base::Drink()
 	{
 		if (UseItem(pDrink, me))
 		{
+			rm->ResetMovement();
 			result = true;
 		}
 	}
