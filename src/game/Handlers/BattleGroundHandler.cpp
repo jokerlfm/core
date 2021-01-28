@@ -36,6 +36,9 @@
 #include "World.h"
 #include "Anticheat.h"
 
+// EJ movement wait 
+#include "RandomMovementGenerator.h"
+
 void WorldSession::HandleBattlemasterHelloOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
@@ -53,8 +56,17 @@ void WorldSession::HandleBattlemasterHelloOpcode(WorldPacket& recv_data)
 
     // Stop the npc if moving
     if (!pCreature->IsStopped() && !pCreature->HasExtraFlag(CREATURE_FLAG_EXTRA_NO_MOVEMENT_PAUSE))
+    {
         pCreature->StopMoving();
-
+        // EJ gossip will wait for a while 
+        if (MotionMaster* mm = pCreature->GetMotionMaster())
+        {
+            if (RandomMovementGenerator* rmg = (RandomMovementGenerator*)mm->top())
+            {
+                rmg->waitDelay = 30000;
+            }
+        }
+    }
     BattleGroundTypeId bgTypeId = sBattleGroundMgr.GetBattleMasterBG(pCreature->GetEntry());
 
     if (bgTypeId == BATTLEGROUND_TYPE_NONE)

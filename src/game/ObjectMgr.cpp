@@ -1992,11 +1992,26 @@ void ObjectMgr::LoadCreatures(bool reload)
         }
         else if (data.movement_type == RANDOM_MOTION_TYPE)
         {
-            if (data.wander_distance == 0.0f)
+            // EJ vendor will not move random 
+            if (const CreatureInfo* ci = sObjectMgr.GetCreatureTemplate(data.creature_id[0]))
             {
-                sLog.outErrorDb("Table `creature` have creature (GUID: %u Entry: %u) with `MovementType`=1 (random movement) but with `wander_distance`=0, replace by idle movement type (0).", guid, data.creature_id[0]);
-                sLog.out(LOG_DBERRFIX, "UPDATE `creature` SET `movement_type`=%u WHERE `guid`=%u AND `id`=%u;", IDLE_MOTION_TYPE, guid, data.creature_id[0]);
-                data.movement_type = IDLE_MOTION_TYPE;
+                if (ci->npc_flags & NPCFlags::UNIT_NPC_FLAG_VENDOR)
+                {
+                    data.movement_type = IDLE_MOTION_TYPE;
+                }
+                else
+                {
+                    if (data.wander_distance == 0.0f)
+                    {
+                        sLog.outErrorDb("Table `creature` have creature (GUID: %u Entry: %u) with `MovementType`=1 (random movement) but with `wander_distance`=0, replace by idle movement type (0).", guid, data.creature_id[0]);
+                        sLog.out(LOG_DBERRFIX, "UPDATE `creature` SET `movement_type`=%u WHERE `guid`=%u AND `id`=%u;", IDLE_MOTION_TYPE, guid, data.creature_id[0]);
+                        data.movement_type = IDLE_MOTION_TYPE;
+                    }
+                    else if (data.wander_distance < 2.0f)
+                    {
+                        data.wander_distance = 2.0f;
+                    }
+                }
             }
         }
         else if (data.movement_type == IDLE_MOTION_TYPE)

@@ -40,6 +40,9 @@
 #include "Chat.h"
 #include "CharacterDatabaseCache.h"
 
+// EJ movement wait 
+#include "RandomMovementGenerator.h"
+
 enum StableResultCode
 {
     STABLE_ERR_MONEY        = 0x01,                         // "you don't have enough money"
@@ -376,7 +379,17 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recv_data)
     GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_TALK); // Removes stealth, feign death ...
 
     if (!pCreature->IsStopped() && !pCreature->HasExtraFlag(CREATURE_FLAG_EXTRA_NO_MOVEMENT_PAUSE))
+    {
         pCreature->StopMoving();
+        // EJ gossip will wait for a while 
+        if (MotionMaster* mm = pCreature->GetMotionMaster())
+        {
+            if (RandomMovementGenerator* rmg = (RandomMovementGenerator*)mm->top())
+            {
+                rmg->waitDelay = 30000;
+            }
+        }
+    }
 
     if (pCreature->IsSpiritGuide())
         pCreature->SendAreaSpiritHealerQueryOpcode(_player);
