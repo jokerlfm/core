@@ -36,8 +36,8 @@ public:
     MapRayCallback(ModelInstance* val, bool isLos): prims(val), hit(false), los(isLos) {}
     bool operator()(G3D::Ray const& ray, uint32 entry, float& distance, bool pStopAtFirstHit = true)
     {
-        // No LoS for some models (trees, fences, ...)
-        if (los && (prims[entry].flags & MOD_NO_BREAK_LOS))
+        // Nostalrius: pas de LoS pour certains models (arbres, ...)
+        if (los && prims[entry].flags & MOD_NO_BREAK_LOS)
             return false;
 
         bool result = prims[entry].intersectRay(ray, distance, pStopAtFirstHit);
@@ -62,7 +62,7 @@ public:
     bool operator()(G3D::Ray const& ray, uint32 entry, float& distance, bool pStopAtFirstHit = true)
     {
         bool hit = prims[entry].intersectRay(ray, distance, pStopAtFirstHit);
-        if (hit && (!result || ((result->flags & MOD_NO_BREAK_LOS))))
+        if (hit && (!result || result->flags & MOD_NO_BREAK_LOS))
             result = &prims[entry];
         return hit;
     }
@@ -208,7 +208,7 @@ bool StaticMapTree::getIntersectionTime(G3D::Ray const& pRay, float& pMaxDist, b
 }
 //=========================================================
 
-bool StaticMapTree::isInLineOfSight(Vector3 const& pos1, Vector3 const& pos2, bool includingM2Objects) const
+bool StaticMapTree::isInLineOfSight(Vector3 const& pos1, Vector3 const& pos2) const
 {
     float maxDist = (pos2 - pos1).magnitude();
     // valid map coords should *never ever* produce float overflow, but this would produce NaNs too:
@@ -218,7 +218,7 @@ bool StaticMapTree::isInLineOfSight(Vector3 const& pos1, Vector3 const& pos2, bo
         return true;
     // direction with length of 1
     G3D::Ray ray = G3D::Ray::fromOriginAndDirection(pos1, (pos2 - pos1) / maxDist);
-    return !getIntersectionTime(ray, maxDist, true, !includingM2Objects);
+    return !getIntersectionTime(ray, maxDist, true, true);
 }
 //=========================================================
 /**
@@ -358,7 +358,7 @@ bool StaticMapTree::InitMap(std::string const& fname, VMapManager2* vm)
 #endif
         if (!iIsTiled && ModelSpawn::readFromFile(rf, spawn))
         {
-            WorldModel* model = vm->acquireModelInstance(iBasePath, spawn.name);
+            std::shared_ptr<WorldModel> model = vm->acquireModelInstance(iBasePath, spawn.name);
             //DEBUG_FILTER_LOG(LOG_FILTER_MAP_LOADING, "StaticMapTree::InitMap(): loading %s", spawn.name.c_str());
             if (model)
             {
@@ -382,12 +382,6 @@ bool StaticMapTree::InitMap(std::string const& fname, VMapManager2* vm)
 
 void StaticMapTree::UnloadMap(VMapManager2* vm)
 {
-    for (auto& iLoadedSpawn : iLoadedSpawns)
-    {
-        iTreeValues[iLoadedSpawn.first].setUnloaded();
-        for (uint32 refCount = 0; refCount < iLoadedSpawn.second; ++refCount)
-            vm->releaseModelInstance(iTreeValues[iLoadedSpawn.first].name);
-    }
     iLoadedSpawns.clear();
     iLoadedTiles.clear();
 }
@@ -428,8 +422,8 @@ bool StaticMapTree::LoadMapTile(uint32 tileX, uint32 tileY, VMapManager2* vm)
             if (result)
             {
                 // acquire model instance
-                WorldModel* model = vm->acquireModelInstance(iBasePath, spawn.name);
-                if (!model)
+                std::shared_ptr<WorldModel> model = vm->acquireModelInstance(iBasePath, spawn.name);
+                if (model == nullptr)
                     ERROR_LOG("StaticMapTree::LoadMapTile() could not acquire WorldModel pointer for '%s'!", spawn.name.c_str());
 
                 // update tree
@@ -498,7 +492,7 @@ void StaticMapTree::UnloadMapTile(uint32 tileX, uint32 tileY, VMapManager2* vm)
                 if (result)
                 {
                     // release model instance
-                    vm->releaseModelInstance(spawn.name);
+                    //vm->releaseModelInstance(spawn.name);
 
                     // update tree
                     uint32 referencedNode;

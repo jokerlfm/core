@@ -317,8 +317,9 @@ Continents.MotionUpdate.Threads         = 0
 AsyncTasks.Threads                      = 1
 AsyncQueriesTickTimeout = 0
 
-# Movement interpolation system - not stable now
-Movement.Interpolation = 0
+# Movement extrapolation system - not stable now
+Movement.ExtrapolateChargePosition = 1
+Movement.ExtrapolatePetPosition = 1
 
 # Delayed repositionning checks (mounts inside / swimming ...). 0 to disable.
 Movement.RelocationVmapsCheckDelay = 0
@@ -805,6 +806,11 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #        Minimal name length (1..12)
 #        Default: 2
 #
+#    WorldAvailable
+#        If players are allowed to enter the world. Character creation will still be possible if world is disabled.
+#        Default: 1 (Enabled)
+#                 0 (Disabled)
+#
 #    CharactersCreatingDisabled
 #        Disable characters creating for specific team or any (non-player accounts not affected)
 #        Default: 0 - enabled
@@ -1032,6 +1038,15 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #        Server autobroadcast interval set in miliseconds.
 #        Default: 1800000 = 30 min
 #
+#    Spell.EffectDelay
+#        Delay in milliseconds before most spell effects are processed.
+#        Default: 400
+#
+#    Spell.ProcDelay
+#        Delay in milliseconds before processing procs. Spells triggered by aura procs also seem
+#        to be subject to a batching delay, so we double the procs delay to recreate the effect.
+#        Default: 800
+#
 #    BeepAtStart
 #        Beep at mangosd start finished (mostly work only at Unix/Linux systems)
 #        Default: 1 (true)
@@ -1064,6 +1079,7 @@ StrictPetNames = 0
 MinPlayerName = 2
 MinCharterName = 2
 MinPetName = 2
+WorldAvailable = 1
 CharactersCreatingDisabled = 0
 CharactersPerAccount = 50
 CharactersPerRealm = 10
@@ -1109,6 +1125,8 @@ PetDefaultLoyalty = 1
 PlayerCommands = 1
 Event.Announce = 0
 AutoBroadcast.Timer = 1800000
+Spell.EffectDelay = 400
+Spell.ProcDelay = 800
 BeepAtStart = 1
 ShowProgressBars = 0
 WaitAtStartupError = 0
@@ -1164,7 +1182,7 @@ AllowTwoSide.AddFriend = 0
 #    ThreatRadius
 #        Radius for creature to evade after being pulled away from combat start point
 #        If ThreatRadius is less than creature aggro radius then aggro radius will be used
-#        Default: 100 yards
+#        Default: 50 yards
 #
 #    MaxCreaturesAttackRadius
 #        Creatures won't search for target farther than this.
@@ -1281,7 +1299,7 @@ AllowTwoSide.AddFriend = 0
 #
 ###################################################################################################################
 
-ThreatRadius = 100
+ThreatRadius = 50
 Rate.Creature.Aggro = 1
 MaxCreaturesAttackRadius = 40
 MaxPlayersStealthDetectRange = 40
@@ -1555,7 +1573,7 @@ Warden.ModuleDir             = "warden_modules"
 #                     1 - (Enabled)
 #
 #    Anticheat.MaxAllowedDesync
-#        Description: Client time desynchronization allowed when doing movement interpolation.
+#        Description: Client time desynchronization allowed when doing movement extrapolation.
 #        Default:     0
 #
 #    Anticheat.ReverseTime.Enable
@@ -2837,10 +2855,4 @@ DynamicRespawn.AffectRespawnTimeBelow   = 0
 DynamicRespawn.AffectLevelBelow         = 0
 DynamicRespawn.PlayersThreshold         = 0
 DynamicRespawn.PlayersMaxLevelDiff      = 0
-
-###################################################################################################################
-#    Others settings
-###################################################################################################################
-
-Spells.CCDelay = 200
 

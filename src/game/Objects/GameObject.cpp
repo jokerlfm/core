@@ -25,7 +25,7 @@
 #include "PoolManager.h"
 #include "SpellMgr.h"
 #include "Spell.h"
-#include "UpdateMask.h"
+#include "Group.h"
 #include "Opcodes.h"
 #include "WorldPacket.h"
 #include "World.h"
@@ -34,13 +34,11 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
-#include "InstanceData.h"
 #include "MapManager.h"
 #include "MapPersistentStateMgr.h"
 #include "BattleGround.h"
 #include "BattleGroundAV.h"
 #include "Util.h"
-
 #include "GameObjectAI.h"
 #include "ScriptMgr.h"
 #include "ZoneScript.h"
@@ -128,6 +126,9 @@ void GameObject::AddToWorld()
 
     if (!i_AI)
         AIM_Initialize();
+
+    if (sWorld.getConfig(CONFIG_UINT32_SPELL_PROC_DELAY))
+        m_procsUpdateTimer = sWorld.getConfig(CONFIG_UINT32_SPELL_PROC_DELAY) - (WorldTimer::getMSTime() % sWorld.getConfig(CONFIG_UINT32_SPELL_PROC_DELAY));
 }
 
 void GameObject::AIM_Initialize()
@@ -304,6 +305,8 @@ void GameObject::Update(uint32 update_diff, uint32 /*p_time*/)
             m_currentSpells[i] = nullptr;                      // remove pointer
         }
     }
+
+    UpdatePendingProcs(update_diff);
 
     ///- UpdateAI
     if (i_AI)
@@ -593,7 +596,7 @@ void GameObject::Update(uint32 update_diff, uint32 /*p_time*/)
             // burning flags in some battlegrounds, if you find better condition, just add it
             if (GetGOInfo()->IsDespawnAtAction() || GetGoAnimProgress() > 0)
             {
-                SendObjectDeSpawnAnim(GetObjectGuid());
+                SendObjectDeSpawnAnim();
                 // reset flags
                 if (GetMap()->Instanceable())
                 {
@@ -673,7 +676,7 @@ void GameObject::Refresh()
 
 void GameObject::AddUniqueUse(Player* player)
 {
-    ACE_Guard <ACE_Thread_Mutex> guard(m_UniqueUsers_lock);
+    std::unique_lock<std::mutex> guard(m_UniqueUsers_lock);
 
     AddUse();
 
@@ -685,7 +688,7 @@ void GameObject::AddUniqueUse(Player* player)
 
     m_UniqueUsers.insert(player->GetObjectGuid());
 
-    guard.release();
+    guard.unlock();
 
     if (GameObjectInfo const* info = GetGOInfo())
         if (info->type == GAMEOBJECT_TYPE_SUMMONING_RITUAL &&
@@ -708,7 +711,7 @@ void GameObject::AddUniqueUse(Player* player)
 
 void GameObject::RemoveUniqueUse(Player* player)
 {
-    ACE_Guard <ACE_Thread_Mutex> guard(m_UniqueUsers_lock);
+    const std::lock_guard<std::mutex> guard(m_UniqueUsers_lock);
 
     auto itr = m_UniqueUsers.find(player->GetObjectGuid());
     if (itr == m_UniqueUsers.end())
@@ -737,7 +740,7 @@ void GameObject::RemoveUniqueUse(Player* player)
 
 void GameObject::FinishRitual()
 {
-    ACE_Guard <ACE_Thread_Mutex> guard(m_UniqueUsers_lock);
+    std::unique_lock<std::mutex> guard(m_UniqueUsers_lock);
 
     if (GameObjectInfo const* info = GetGOInfo())
     {
@@ -756,7 +759,7 @@ void GameObject::FinishRitual()
             {
                 std::advance(it, urand(0, m_UniqueUsers.size() - 1));
 
-                guard.release();
+                guard.unlock();
 
                 if (Player* target = GetMap()->GetPlayer(*it))
                     target->CastSpell(target, spellid, true);
@@ -767,13 +770,13 @@ void GameObject::FinishRitual()
 
 bool GameObject::HasUniqueUser(Player* player)
 {
-    ACE_Guard <ACE_Thread_Mutex> guard(m_UniqueUsers_lock);
+    const std::lock_guard<std::mutex> guard(m_UniqueUsers_lock);
     return m_UniqueUsers.find(player->GetObjectGuid()) != m_UniqueUsers.end();
 }
 
 uint32 GameObject::GetUniqueUseCount()
 {
-    ACE_Guard <ACE_Thread_Mutex> guard(m_UniqueUsers_lock);
+    const std::lock_guard<std::mutex> guard(m_UniqueUsers_lock);
     return m_UniqueUsers.size();
 }
 
@@ -792,7 +795,7 @@ void GameObject::Delete()
     // no despawn animation for not activated rituals
     if (GetGoType() != GAMEOBJECT_TYPE_SUMMONING_RITUAL ||
         GetGoState() == GO_STATE_ACTIVE)
-        SendObjectDeSpawnAnim(GetObjectGuid());
+        SendObjectDeSpawnAnim();
 
     if (!IsDeleted())
         AddObjectToRemoveList();
@@ -2398,7 +2401,7 @@ void GameObject::SendGameObjectReset()
 
 void GameObject::Despawn()
 {
-    SendObjectDeSpawnAnim(GetObjectGuid());
+    SendObjectDeSpawnAnim();
     if (GameObjectData const* data = GetGOData())
     {
         if (m_spawnedByDefault)

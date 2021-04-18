@@ -19,8 +19,6 @@
 #include "HomeMovementGenerator.h"
 #include "Creature.h"
 #include "CreatureAI.h"
-#include "ObjectMgr.h"
-#include "WorldPacket.h"
 #include "MoveSplineInit.h"
 #include "MoveSpline.h"
 
@@ -55,7 +53,7 @@ void HomeMovementGenerator<Creature>::_setTargetLocation(Creature & owner)
 
     PathFinder path(&owner);
     path.calculate(x, y, z, true);
-    if ((path.getPathType() & PATHFIND_NORMAL) && !((path.getPathType() & PATHFIND_NOT_USING_PATH) && (path.getPathType() & PATHFIND_DEST_FORCED)))
+    if (path.getPathType() & PATHFIND_NORMAL)
     {
         Movement::MoveSplineInit init(owner, "HomeMovementGenerator");
 

@@ -27,9 +27,9 @@
 #include "ScriptMgr.h"
 #include "ObjectGuid.h"
 #include "SpellMgr.h"
-#include "QuestDef.h"
 #include "GossipDef.h"
 #include "Player.h"
+#include "Group.h"
 #include "GameEventMgr.h"
 #include "PoolManager.h"
 #include "Opcodes.h"
@@ -38,18 +38,13 @@
 #include "MapManager.h"
 #include "CreatureAI.h"
 #include "CreatureAISelector.h"
-#include "Formulas.h"
-#include "WaypointMovementGenerator.h"
-#include "InstanceData.h"
+#include "MovementGenerator.h"
 #include "MapPersistentStateMgr.h"
 #include "BattleGroundMgr.h"
-#include "Spell.h"
 #include "Util.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
-#include "Language.h"
-
 #include "CreatureGroups.h"
 #include "ZoneScript.h"
 #include "MoveSplineInit.h"
@@ -57,12 +52,7 @@
 #include "Anticheat.h"
 #include "CreatureLinkingMgr.h"
 #include "TemporarySummon.h"
-#include "ScriptedEscortAI.h"
 #include "GuardMgr.h"
-
-// apply implementation of the singletons
-#include "Policies/SingletonImp.h"
-
 
 TrainerSpell const* TrainerSpellData::Find(uint32 spell_id) const
 {
@@ -790,7 +780,7 @@ void Creature::Update(uint32 update_diff, uint32 diff)
             ModifyAuraState(AURA_STATE_HEALTHLESS_5_PERCENT, hpPercent < 6.0f);
 
             bool unreachableTarget = !i_motionMaster.empty() &&
-                                     GetVictim() &&
+                                     GetVictim() && !HasExtraFlag(CREATURE_FLAG_EXTRA_NO_UNREACHABLE_EVADE) &&
                                      GetMotionMaster()->GetCurrentMovementGeneratorType() == CHASE_MOTION_TYPE &&
                                      !HasDistanceCasterMovement() &&
                                      (!CanReachWithMeleeAutoAttack(GetVictim()) || !IsWithinLOSInMap(GetVictim())) &&
@@ -823,6 +813,10 @@ void Creature::Update(uint32 update_diff, uint32 diff)
 
                 if (WorldTimer::tickTime() % 3000 <= update_diff)
                 {
+                    // Prevent mobs from evading while under crowd control.
+                    if (HasUnitState(UNIT_STAT_NO_FREE_MOVE))
+                        UpdateLeashExtensionTime();
+
                     // Leash prevents mobs from chasing any further than specified range
                     if (m_leashDistance && !IsWithinDist3d(m_combatStartX, m_combatStartY, m_combatStartZ, m_leashDistance))
                         leash = true;
@@ -2349,12 +2343,9 @@ bool Creature::IsOutOfThreatArea(Unit* pVictim) const
 
     if (pVictim->IsInMap(this))
     {
-        float AttackDist = GetAttackDistance(pVictim);
-        float ThreatRadius = sWorld.getConfig(CONFIG_FLOAT_THREAT_RADIUS);
-
-        //Use AttackDistance in distance check if threat radius is lower. This prevents creature bounce in and out of combat every update tick.
-        float threatAreaDistance = ThreatRadius > AttackDist ? ThreatRadius : AttackDist;
-        bool inThreatArea = pVictim->IsWithinDist3d(m_combatStartX, m_combatStartY, m_combatStartZ, threatAreaDistance);
+        // Use attack distance in distance check if threat radius is lower. This prevents creature bounce in and out of combat every update tick.
+        float threatAreaDistance = std::max(GetAttackDistance(pVictim) * 1.5f, sWorld.getConfig(CONFIG_FLOAT_THREAT_RADIUS));
+        bool inThreatArea = IsWithinDist3d(m_combatStartX, m_combatStartY, m_combatStartZ, threatAreaDistance) || pVictim->IsWithinDist3d(m_combatStartX, m_combatStartY, m_combatStartZ, threatAreaDistance);
         if (!inThreatArea && (GetLastLeashExtensionTime() + 12 < time(nullptr)))
             return true;
     }
@@ -2458,11 +2449,18 @@ void Creature::LoadCreatureAddon(bool reload)
 /// Send a message to LocalDefense channel for players opposition team in the zone
 void Creature::SendZoneUnderAttackMessage(Player* attacker)
 {
-    Team enemy_team = attacker->GetTeam();
+    uint32 areaId = GetAreaId();
+    time_t now = time(nullptr);
+    static std::unordered_map<uint32, time_t> areaAttackedCooldowns;
+    if (areaAttackedCooldowns[areaId] + 10 < now)
+    {
+        areaAttackedCooldowns[areaId] = now;
+        Team enemyTeam = attacker->GetTeam();
 
-    WorldPacket data(SMSG_ZONE_UNDER_ATTACK, 4);
-    data << uint32(GetZoneId());
-    sWorld.SendGlobalMessage(&data, nullptr, (enemy_team == ALLIANCE ? HORDE : ALLIANCE));
+        WorldPacket data(SMSG_ZONE_UNDER_ATTACK, 4);
+        data << uint32(areaId);
+        GetMap()->SendToPlayers(&data, (enemyTeam == ALLIANCE ? HORDE : ALLIANCE));
+    }
 }
 
 void Creature::SetInCombatWithZone(bool initialPulse)
@@ -2801,15 +2799,27 @@ Unit* Creature::SelectAttackingTarget(AttackingTarget target, uint32 position, S
 
 bool Creature::IsInEvadeMode() const
 {
+    if (IsEvadeBecauseTargetNotReachable())
+        return true;
+
+    if (GetMotionMaster()->GetCurrentMovementGeneratorType() == HOME_MOTION_TYPE)
+        return true;
+
     if (IsPet())
         if (Creature const* pOwner = GetOwnerCreature())
             if (pOwner->IsInEvadeMode())
                 return true;
 
-    if (IsEvadeBecauseTargetNotReachable())
-        return true;
+    if (!IsInCombat() && GetMotionMaster()->GetCurrentMovementGeneratorType() == PATROL_MOTION_TYPE)
+    {
+        if (CreatureGroup* pGroup = GetCreatureGroup())
+            if (pGroup->IsFormation() && pGroup->GetLeaderGuid() != GetObjectGuid())
+                if (Creature* pLeader = GetMap()->GetCreature(pGroup->GetLeaderGuid()))
+                    if (pLeader->IsInEvadeMode())
+                        return true;
+    }
 
-    return !i_motionMaster.empty() && i_motionMaster.GetCurrentMovementGeneratorType() == HOME_MOTION_TYPE;
+    return false;
 }
 
 bool Creature::HasSpell(uint32 spellId) const
@@ -3634,7 +3644,7 @@ bool Creature::canStartAttack(Unit const* who, bool force) const
                 if (IsWithinDistInMap(victim, 10.0f))
                     force = true;
 
-        if (!force && (IsNeutralToAll() || !IsWithinDistInMap(who, GetAttackDistance(who))))
+        if (!force && (IsNeutralToAll() || !IsWithinDistInMap(who, GetAttackDistance(who), true, false)))
             return false;
     }
 

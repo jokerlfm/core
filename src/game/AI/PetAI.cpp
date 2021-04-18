@@ -23,15 +23,13 @@
 #include "Errors.h"
 #include "Pet.h"
 #include "Player.h"
-#include "DBCStores.h"
 #include "Spell.h"
-#include "ObjectAccessor.h"
 #include "SpellMgr.h"
+#include "ScriptMgr.h"
 #include "Creature.h"
-#include "World.h"
 #include "Util.h"
 #include "Group.h"
-#include "SpellAuras.h"
+#include "SpellAuraDefines.h"
 
 int PetAI::Permissible(Creature const* creature)
 {
@@ -100,7 +98,7 @@ void PetAI::_stopAttack()
 
 void PetAI::UpdateAI(uint32 const diff)
 {
-    if (!m_creature->IsAlive() || !m_creature->GetCharmInfo())
+    if (!m_creature->IsAlive() || !m_creature->GetCharmInfo() || m_creature->HasUnitState(UNIT_STAT_CAN_NOT_REACT))
         return;
 
     // part of it must run during eyes of the Beast to update melee hits
@@ -451,6 +449,10 @@ void PetAI::OwnerAttackedBy(Unit* attacker)
     if (m_creature->HasReactState(REACT_PASSIVE))
         return;
 
+    // In crowd control
+    if (m_creature->HasUnitState(UNIT_STAT_CAN_NOT_REACT))
+        return;
+
     // Prevent pet from disengaging from current target
     if (m_creature->GetVictim() && m_creature->GetVictim()->IsAlive())
         return;
@@ -483,6 +485,10 @@ void PetAI::OwnerAttacked(Unit* target)
 
     // Passive pets don't do anything
     if (m_creature->HasReactState(REACT_PASSIVE))
+        return;
+
+    // In crowd control
+    if (m_creature->HasUnitState(UNIT_STAT_CAN_NOT_REACT))
         return;
 
     // Prevent pet from disengaging from current target
@@ -687,7 +693,7 @@ bool PetAI::CanAttack(Unit* target)
     if (!target)
         return false;
 
-    if (!m_creature->IsValidAttackTarget(target))
+    if (!m_creature->IsValidAttackTarget(target, false))
         return false;
 
     if (!target->IsAlive())

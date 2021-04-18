@@ -17,6 +17,7 @@
 */
 
 #include "GuardEventAI.h"
+#include "Creature.h"
 
 GuardEventAI::GuardEventAI(Creature* pCreature) : CreatureEventAI(pCreature)
 {}
@@ -72,7 +73,7 @@ void GuardEventAI::MoveInLineOfSight(Unit* pWho)
                 attackRadius = 30.0f;
     }
 
-    if (!m_creature->IsWithinDistInMap(pWho, attackRadius))
+    if (!m_creature->IsWithinDistInMap(pWho, attackRadius, true, false))
         return;
 
     if (m_creature->CanInitiateAttack() && m_creature->IsValidAttackTarget(pWho) &&
@@ -87,12 +88,4 @@ void GuardEventAI::EnterCombat(Unit* pWho)
 {
     CreatureEventAI::EnterCombat(pWho);
     m_creature->CallForHelp(30.0f);
-}
-
-void GuardEventAI::JustDied(Unit* pKiller)
-{
-    CreatureEventAI::JustDied(pKiller);
-
-    if (Player* pPlayerKiller = pKiller->GetCharmerOrOwnerPlayerOrPlayerItself())
-        m_creature->SendZoneUnderAttackMessage(pPlayerKiller);
 }

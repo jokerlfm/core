@@ -34,23 +34,20 @@
 #include "UpdateMask.h"
 #include "Util.h"
 #include "MapManager.h"
-#include "Log.h"
 #include "Transport.h"
-#include "TargetedMovementGenerator.h"
-#include "WaypointMovementGenerator.h"
+#include "MotionMaster.h"
 #include "VMapFactory.h"
 #include "CellImpl.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Language.h"
-
+#include "Geometry.h"
 #include "ObjectPosSelector.h"
-
+#include "MoveMapSharedDefines.h"
 #include "TemporarySummon.h"
 #include "ZoneScriptMgr.h"
 #include "InstanceData.h"
 #include "Chat.h"
-#include "Anticheat.h"
 
 #include "packet_builder.h"
 #include "MovementBroadcaster.h"
@@ -605,9 +602,8 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
     }
     if (isType(TYPEMASK_GAMEOBJECT))
     {
-        target->m_visibleGobjsQuestAct_lock.acquire();
+        std::unique_lock<std::mutex> lock(target->m_visibleGobjsQuestAct_lock);
         target->m_visibleGobjQuestActivated[GetObjectGuid()] = IsActivateToQuest;
-        target->m_visibleGobjsQuestAct_lock.release();
     }
 
     MANGOS_ASSERT(updateMask && updateMask->GetCount() == m_valuesCount);
@@ -680,8 +676,8 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
 
                 // there are some float values which may be negative or can't get negative due to other checks
                 else if ((index >= PLAYER_FIELD_NEGSTAT0    && index <= PLAYER_FIELD_NEGSTAT4) ||
-                         (index >= PLAYER_FIELD_RES_BUFF_MODS_POSITIVE  && index <= (PLAYER_FIELD_RES_BUFF_MODS_POSITIVE + 6)) ||
-                         (index >= PLAYER_FIELD_RES_BUFF_MODS_NEGATIVE  && index <= (PLAYER_FIELD_RES_BUFF_MODS_NEGATIVE + 6)) ||
+                         (index >= PLAYER_FIELD_RESISTANCEBUFFMODSPOSITIVE  && index <= (PLAYER_FIELD_RESISTANCEBUFFMODSPOSITIVE + 6)) ||
+                         (index >= PLAYER_FIELD_RESISTANCEBUFFMODSNEGATIVE  && index <= (PLAYER_FIELD_RESISTANCEBUFFMODSNEGATIVE + 6)) ||
                          (index >= PLAYER_FIELD_POSSTAT0    && index <= PLAYER_FIELD_POSSTAT4))
                     *data << uint32(m_floatValues[index]);
                 // Gamemasters should be always able to select units and view auras
@@ -1524,7 +1520,7 @@ bool WorldObject::IsInMap(WorldObject const* obj) const
     return IsInWorld() && obj->IsInWorld() && (GetMap() == obj->GetMap());
 }
 
-bool WorldObject::_IsWithinDist(WorldObject const* obj, float dist2compare, bool is3D) const
+bool WorldObject::_IsWithinDist(WorldObject const* obj, float dist2compare, bool is3D, bool useBoundingRadius) const
 {
     ASSERT(obj);
     float dx = GetPositionX() - obj->GetPositionX();
@@ -1535,13 +1531,13 @@ bool WorldObject::_IsWithinDist(WorldObject const* obj, float dist2compare, bool
         float dz = GetPositionZ() - obj->GetPositionZ();
         distsq += dz * dz;
     }
-    float sizefactor = GetObjectBoundingRadius() + obj->GetObjectBoundingRadius();
+    float sizefactor = useBoundingRadius ? GetObjectBoundingRadius() + obj->GetObjectBoundingRadius() : 0.0f;
     float maxdist = dist2compare + sizefactor;
 
     return distsq < maxdist * maxdist;
 }
 
-bool WorldObject::IsWithinLOSInMap(WorldObject const* obj, bool checkDynLos, bool includingM2Objects) const
+bool WorldObject::IsWithinLOSInMap(WorldObject const* obj, bool checkDynLos) const
 {
     ASSERT(obj);
     if (!IsInMap(obj))
@@ -1551,15 +1547,15 @@ bool WorldObject::IsWithinLOSInMap(WorldObject const* obj, bool checkDynLos, boo
     float ox, oy, oz;
     obj->GetPosition(ox, oy, oz);
     float targetHeight = obj->IsUnit() ? obj->ToUnit()->GetCollisionHeight() : 2.f;
-    return (IsWithinLOS(ox, oy, oz, checkDynLos, targetHeight, includingM2Objects));
+    return (IsWithinLOS(ox, oy, oz, checkDynLos, targetHeight));
 }
 
-bool WorldObject::IsWithinLOS(float ox, float oy, float oz, bool checkDynLos, float targetHeight, bool includingM2Objects) const
+bool WorldObject::IsWithinLOSAtPosition(float ownX, float ownY, float ownZ, float targetX, float targetY, float targetZ, bool checkDynLos, float targetHeight) const
 {
     if (IsInWorld())
     {
         float height = IsUnit() ? ToUnit()->GetCollisionHeight() : 2.f;
-        return GetMap()->isInLineOfSight(GetPositionX(), GetPositionY(), GetPositionZ() + height, ox, oy, oz + targetHeight, checkDynLos, includingM2Objects);
+        return GetMap()->isInLineOfSight(ownX, ownY, ownZ + height, targetX, targetY, targetZ + targetHeight, checkDynLos);
     }
 
     return true;
@@ -2011,10 +2007,17 @@ void WorldObject::SendMessageToSetExcept(WorldPacket* data, Player const* skippe
     }
 }
 
-void WorldObject::SendObjectDeSpawnAnim(ObjectGuid guid) const
+void WorldObject::SendObjectSpawnAnim() const
+{
+    WorldPacket data(SMSG_GAMEOBJECT_SPAWN_ANIM, 8);
+    data << GetObjectGuid();
+    SendObjectMessageToSet(&data, true);
+}
+
+void WorldObject::SendObjectDeSpawnAnim() const
 {
     WorldPacket data(SMSG_GAMEOBJECT_DESPAWN_ANIM, 8);
-    data << ObjectGuid(guid);
+    data << GetObjectGuid();
     SendObjectMessageToSet(&data, true);
 }
 
@@ -2294,8 +2297,8 @@ namespace MaNGOS
 class NearUsedPosDo
 {
 public:
-    NearUsedPosDo(WorldObject const& obj, WorldObject const* searcher, float angle, ObjectPosSelector& selector)
-        : i_object(obj), i_searcher(searcher), i_angle(angle), i_selector(selector) {}
+    NearUsedPosDo(WorldObject const& obj, float objX, float objY, WorldObject const* searcher, float angle, ObjectPosSelector& selector)
+        : i_object(obj), i_objectX(objX), i_objectY(objY), i_searcher(searcher), i_angle(angle), i_selector(selector) {}
 
     void operator()(Corpse*) const {}
     void operator()(DynamicObject*) const {}
@@ -2309,7 +2312,7 @@ public:
         float x, y, z;
 
         if (!c->IsAlive() || c->HasUnitState(UNIT_STAT_NOT_MOVE) ||
-                !c->GetMotionMaster()->GetDestination(x, y, z))
+            !c->GetMotionMaster()->GetDestination(x, y, z))
         {
             x = c->GetPositionX();
             y = c->GetPositionY();
@@ -2337,20 +2340,22 @@ public:
     void add(WorldObject* u, float x, float y) const
     {
         // u is too nearest/far away to i_object
-        if (!i_object.IsInRange2d(x, y, i_selector.m_dist - i_selector.m_size, i_selector.m_dist + i_selector.m_size))
+        if (!Geometry::IsInRange2D(i_objectX, i_objectY, x, y, i_selector.m_dist - i_selector.m_size + i_object.GetObjectBoundingRadius(), i_selector.m_dist + i_selector.m_size + i_object.GetObjectBoundingRadius()))
             return;
 
-        float angle = i_object.GetAngle(u) - i_angle;
+        float angle = Geometry::GetAngle(i_objectX, i_objectY, u->GetPositionX(), u->GetPositionY()) - i_angle;
 
         // move angle to range -pi ... +pi
         angle = MapManager::NormalizeOrientation(angle);
 
         // dist include size of u
-        float dist2d = i_object.GetDistance2d(x, y);
+        float dist2d = std::max(Geometry::GetDistance2D(i_objectX, i_objectY, x, y) - i_object.GetObjectBoundingRadius(), 0.0f);
         i_selector.AddUsedPos(u->GetObjectBoundingRadius(), angle, dist2d + i_object.GetObjectBoundingRadius());
     }
 private:
     WorldObject const& i_object;
+    float i_objectX;
+    float i_objectY;
     WorldObject const* i_searcher;
     float              i_angle;
     ObjectPosSelector& i_selector;
@@ -2359,21 +2364,29 @@ private:
 
 //===================================================================================================
 
-void WorldObject::GetNearPoint2D(float &x, float &y, float distance2d, float absAngle) const
+void WorldObject::GetNearPoint2DAroundPosition(float ownX, float ownY, float &x, float &y, float distance2d, float absAngle) const
 {
-    x = GetPositionX() + (GetObjectBoundingRadius() + distance2d) * cos(absAngle);
-    y = GetPositionY() + (GetObjectBoundingRadius() + distance2d) * sin(absAngle);
+    x = ownX + (GetObjectBoundingRadius() + distance2d) * cos(absAngle);
+    y = ownY + (GetObjectBoundingRadius() + distance2d) * sin(absAngle);
 
     MaNGOS::NormalizeMapCoord(x);
     MaNGOS::NormalizeMapCoord(y);
 }
 
+
 void WorldObject::GetNearPoint(WorldObject const* searcher, float &x, float &y, float &z, float searcher_bounding_radius, float distance2d, float absAngle) const
 {
     GetPosition(x, y, z);
+    GetNearPointAroundPosition(searcher, x, y, z, searcher_bounding_radius, distance2d, absAngle);
+}
 
-    GetNearPoint2D(x, y, distance2d + searcher_bounding_radius, absAngle);
-    z = GetPositionZ();
+void WorldObject::GetNearPointAroundPosition(WorldObject const* searcher, float &x, float &y, float &z, float searcher_bounding_radius, float distance2d, float absAngle) const
+{
+    float startX = x;
+    float startY = y;
+    float startZ = z;
+
+    GetNearPoint2DAroundPosition(startX, startY, x, y, distance2d + searcher_bounding_radius, absAngle);
 
     // if detection disabled, return first point
     if (!sWorld.getConfig(CONFIG_BOOL_DETECT_POS_COLLISION))
@@ -2390,12 +2403,12 @@ void WorldObject::GetNearPoint(WorldObject const* searcher, float &x, float &y, 
     float first_y = y;
     bool first_los_conflict = false;                        // first point LOS problems
 
-    // prepare selector for work
-    ObjectPosSelector selector(GetPositionX(), GetPositionY(), GetObjectBoundingRadius(), distance2d + searcher_bounding_radius);
+                                                            // prepare selector for work
+    ObjectPosSelector selector(startX, startY, GetObjectBoundingRadius(), distance2d + searcher_bounding_radius);
 
     // adding used positions around object
     {
-        MaNGOS::NearUsedPosDo u_do(*this, searcher, absAngle, selector);
+        MaNGOS::NearUsedPosDo u_do(*this, startX, startY, searcher, absAngle, selector);
         MaNGOS::WorldObjectWorker<MaNGOS::NearUsedPosDo> worker(u_do);
 
         Cell::VisitAllObjects(this, worker, distance2d);
@@ -2409,7 +2422,7 @@ void WorldObject::GetNearPoint(WorldObject const* searcher, float &x, float &y, 
         else
             UpdateGroundPositionZ(x, y, z);
 
-        if (IsWithinLOS(x, y, z))
+        if (IsWithinLOSAtPosition(startX, startY, startZ, x, y, z))
             return;
 
         first_los_conflict = true;                          // first point have LOS problems
@@ -2417,18 +2430,18 @@ void WorldObject::GetNearPoint(WorldObject const* searcher, float &x, float &y, 
 
     float angle;                                            // candidate of angle for free pos
 
-    // special case when one from list empty and then empty side preferred
+                                                            // special case when one from list empty and then empty side preferred
     if (selector.FirstAngle(angle))
     {
-        GetNearPoint2D(x, y, distance2d, absAngle + angle);
-        z = GetPositionZ();
+        GetNearPoint2DAroundPosition(startX, startY, x, y, distance2d, absAngle + angle);
+        z = startZ;
 
         if (searcher)
             searcher->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
         else
             UpdateGroundPositionZ(x, y, z);
 
-        if (IsWithinLOS(x, y, z))
+        if (IsWithinLOSAtPosition(startX, startY, startZ, x, y, z))
             return;
     }
 
@@ -2438,15 +2451,15 @@ void WorldObject::GetNearPoint(WorldObject const* searcher, float &x, float &y, 
     // select in positions after current nodes (selection one by one)
     while (selector.NextAngle(angle))                       // angle for free pos
     {
-        GetNearPoint2D(x, y, distance2d, absAngle + angle);
-        z = GetPositionZ();
+        GetNearPoint2DAroundPosition(startX, startY, x, y, distance2d, absAngle + angle);
+        z = startZ;
 
         if (searcher)
             searcher->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
         else
             UpdateGroundPositionZ(x, y, z);
 
-        if (IsWithinLOS(x, y, z))
+        if (IsWithinLOSAtPosition(startX, startY, startZ, x, y, z))
             return;
     }
 
@@ -2471,15 +2484,15 @@ void WorldObject::GetNearPoint(WorldObject const* searcher, float &x, float &y, 
     {
         if (!selector.FirstAngle(angle))                    // _used_ pos
         {
-            GetNearPoint2D(x, y, distance2d, absAngle + angle);
-            z = GetPositionZ();
+            GetNearPoint2DAroundPosition(startX, startY, x, y, distance2d, absAngle + angle);
+            z = startZ;
 
             if (searcher)
                 searcher->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
             else
                 UpdateGroundPositionZ(x, y, z);
 
-            if (IsWithinLOS(x, y, z))
+            if (IsWithinLOSAtPosition(startX, startY, startZ, x, y, z))
                 return;
         }
     }
@@ -2490,15 +2503,15 @@ void WorldObject::GetNearPoint(WorldObject const* searcher, float &x, float &y, 
     // select in positions after current nodes (selection one by one)
     while (selector.NextUsedAngle(angle))                   // angle for used pos but maybe without LOS problem
     {
-        GetNearPoint2D(x, y, distance2d, absAngle + angle);
-        z = GetPositionZ();
+        GetNearPoint2DAroundPosition(startX, startY, x, y, distance2d, absAngle + angle);
+        z = startZ;
 
         if (searcher)
             searcher->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
         else
             UpdateGroundPositionZ(x, y, z);
 
-        if (IsWithinLOS(x, y, z))
+        if (IsWithinLOSAtPosition(startX, startY, startZ, x, y, z))
             return;
     }
 
@@ -3530,7 +3543,7 @@ SpellMissInfo WorldObject::SpellHitResult(Unit* pVictim, SpellEntry const* spell
         if (reflectchance > 0 && roll_chance_i(reflectchance))
         {
             // Start triggers for remove charges if need (trigger only for victim, and mark as active spell)
-            ProcDamageAndSpell(pVictim, PROC_FLAG_NONE, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT, PROC_EX_REFLECT, 1, BASE_ATTACK, spell);
+            ProcDamageAndSpell(ProcSystemArguments(pVictim, PROC_FLAG_NONE, PROC_FLAG_TAKEN_NEGATIVE_SPELL_HIT, PROC_EX_REFLECT, 1, BASE_ATTACK, spell));
             return SPELL_MISS_REFLECT;
         }
     }
@@ -3548,35 +3561,100 @@ SpellMissInfo WorldObject::SpellHitResult(Unit* pVictim, SpellEntry const* spell
     return SPELL_MISS_NONE;
 }
 
-void WorldObject::ProcDamageAndSpell(Unit* pVictim, uint32 procAttacker, uint32 procVictim, uint32 procExtra, uint32 amount, WeaponAttackType attType, SpellEntry const* procSpell, Spell* spell)
+ProcSystemArguments::ProcSystemArguments(Unit* pVictim_, uint32 procFlagsAttacker_, uint32 procFlagsVictim_, uint32 procExtra_, uint32 amount_, WeaponAttackType attType_,
+    SpellEntry const* procSpell_, Spell const* spell)
+    : pVictim(pVictim_), procFlagsAttacker(procFlagsAttacker_), procFlagsVictim(procFlagsVictim_), procExtra(procExtra_), amount(amount_),
+    attType(attType_), procSpell(procSpell_), isSpellTriggeredByAura(spell && spell->IsTriggeredByAura())
 {
-    if ((pVictim && !IsInMap(pVictim)) || !IsInWorld())
+    if (spell)
+        appliedSpellModifiers = spell->m_appliedMods;
+
+    if (pVictim_)
+        victimGuid = pVictim_->GetObjectGuid();
+}
+
+void WorldObject::UpdatePendingProcs(uint32 diff)
+{
+    if (sWorld.getConfig(CONFIG_UINT32_SPELL_PROC_DELAY) && IsInWorld())
+    {
+        if (m_procsUpdateTimer < diff)
+        {
+            m_procsUpdateTimer = sWorld.getConfig(CONFIG_UINT32_SPELL_PROC_DELAY);
+            if (!m_pendingProcChecks.empty())
+            {
+                std::vector<ProcSystemArguments> procData = std::move(m_pendingProcChecks);
+                m_pendingProcChecks.clear();
+                for (auto& proc : procData)
+                    ProcDamageAndSpell_delayed(proc);
+            }
+        }
+        else
+            m_procsUpdateTimer -= diff;
+    }
+}
+
+void WorldObject::ProcDamageAndSpell(ProcSystemArguments&& data)
+{
+    if ((data.pVictim && !IsInMap(data.pVictim)) || !IsInWorld())
         return;
 
+    if (data.procFlagsAttacker)
+        if (Unit* pUnit = ToUnit())
+            pUnit->ProcSkillsAndReactives(false, data.pVictim, data.procFlagsAttacker, data.procExtra, data.attType);
+
+    if (data.procFlagsVictim && data.pVictim && data.pVictim->IsAlive())
+        data.pVictim->ProcSkillsAndReactives(true, IsUnit() ? static_cast<Unit*>(this) : data.pVictim, data.procFlagsVictim, data.procExtra, data.attType);
+
+    if (!sWorld.getConfig(CONFIG_UINT32_SPELL_PROC_DELAY))
+        ProcDamageAndSpell_real(data);
+    else
+        m_pendingProcChecks.emplace_back(std::move(data));
+}
+
+void WorldObject::ProcDamageAndSpell_delayed(ProcSystemArguments& data)
+{
+    if (data.pVictim)
+    {
+        data.pVictim = GetMap()->GetUnit(data.victimGuid);
+        if (!data.pVictim)
+            return;
+    }
+
+    ProcDamageAndSpell_real(data);
+}
+
+void WorldObject::ProcDamageAndSpell_real(ProcSystemArguments& data)
+{
     ProcTriggeredList procTriggered;
 
     // Not much to do if no flags are set.
-    if (procAttacker)
+    if (data.procFlagsAttacker)
         if (Unit* pUnit = ToUnit())
-            pUnit->ProcDamageAndSpellFor(false, pVictim, procAttacker, procExtra, attType, procSpell, amount, procTriggered, spell);
+            pUnit->ProcDamageAndSpellFor(false, data.pVictim, data.procFlagsAttacker, data.procExtra, data.attType, data.procSpell, data.amount, procTriggered, data.appliedSpellModifiers, data.isSpellTriggeredByAura);
 
     // Now go on with a victim's events'n'auras
     // Not much to do if no flags are set or there is no victim
-    if (pVictim && pVictim->IsAlive() && procVictim)
-
+    if (data.pVictim && data.pVictim->IsAlive() && data.procFlagsVictim)
+    {
         // http://blue.cardplace.com/cache/wow-paladin/1069149.htm
         // "Charges will not generate off auto attacks or npc attacks by trying"
         // "to sit down and force a crit. However, ability crits from physical"
         // "abilities such as Sinister Strike, Hamstring, Auto-shot, Aimed shot,"
         // "etc will generate a charge if you're sitting."
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_7_1
-        pVictim->ProcDamageAndSpellFor(true, IsUnit() ? static_cast<Unit*>(this) : pVictim, procVictim, !procSpell && !pVictim->IsStandingUpForProc() ? procExtra & ~PROC_EX_CRITICAL_HIT : procExtra, attType, procSpell, amount, procTriggered, spell);
+        data.pVictim->ProcDamageAndSpellFor(true, IsUnit() ? static_cast<Unit*>(this) : data.pVictim, data.procFlagsVictim, !data.procSpell && !data.pVictim->IsStandingUp() ? data.procExtra & ~PROC_EX_CRITICAL_HIT : data.procExtra, data.attType, data.procSpell, data.amount, procTriggered, data.appliedSpellModifiers, data.isSpellTriggeredByAura);
 #else
-        pVictim->ProcDamageAndSpellFor(true, IsUnit() ? static_cast<Unit*>(this) : pVictim, procVictim, procExtra, attType, procSpell, amount, procTriggered, spell);
+        data.pVictim->ProcDamageAndSpellFor(true, IsUnit() ? static_cast<Unit*>(this) : data.pVictim, data.procFlagsVictim, data.procExtra, data.attType, data.procSpell, data.amount, procTriggered, data.appliedSpellModifiers, data.isSpellTriggeredByAura);
 #endif
+    
+        // Standing up on damage taken must happen after proc checks.
+        if (Player* pVictimPlayer = data.pVictim->ToPlayer())
+            if (pVictimPlayer->IsStandUpScheduled())
+                pVictimPlayer->SetStandState(UNIT_STAND_STATE_STAND);
+    }
 
     if (Unit* pUnit = ToUnit())
-        pUnit->HandleTriggers(pVictim, procExtra, amount, procSpell, procTriggered);
+        pUnit->HandleTriggers(data.pVictim, data.procExtra, data.amount, data.procSpell, procTriggered);
 }
 
 // Melee based spells can be miss, parry or dodge on this step
@@ -3945,10 +4023,10 @@ uint32 WorldObject::SpellCriticalDamageBonus(SpellEntry const* spellProto, uint3
     return damage;
 }
 
-uint32 WorldObject::SpellCriticalHealingBonus(SpellEntry const* spellProto, uint32 damage, Unit const* pVictim) const
+float WorldObject::SpellCriticalHealingBonus(SpellEntry const* spellProto, uint32 damage, Unit const* pVictim) const
 {
     // Calculate critical bonus
-    int32 crit_bonus;
+    float crit_bonus;
     switch (spellProto->DmgClass)
     {
         case SPELL_DAMAGE_CLASS_MELEE:                      // for melee based spells is 100%
@@ -3966,7 +4044,7 @@ uint32 WorldObject::SpellCriticalHealingBonus(SpellEntry const* spellProto, uint
         if (Unit const* pUnit = ToUnit())
         {
             uint32 creatureTypeMask = pVictim->GetCreatureTypeMask();
-            crit_bonus = int32(crit_bonus * pUnit->GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_CRIT_PERCENT_VERSUS, creatureTypeMask));
+            crit_bonus = crit_bonus * pUnit->GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_CRIT_PERCENT_VERSUS, creatureTypeMask);
         }
     }
 
@@ -4078,7 +4156,7 @@ SpellSchoolMask WorldObject::GetMeleeDamageSchoolMask() const
     return SPELL_SCHOOL_MASK_NORMAL;
 }
 
-uint32 WorldObject::CalcArmorReducedDamage(Unit* pVictim, uint32 const damage) const
+float WorldObject::CalcArmorReducedDamage(Unit* pVictim, uint32 const damage) const
 {
     uint32 newdamage = 0;
     float armor = (float)pVictim->GetArmor();
@@ -4099,12 +4177,12 @@ uint32 WorldObject::CalcArmorReducedDamage(Unit* pVictim, uint32 const damage) c
     if (tmpvalue > 0.75f)
         tmpvalue = 0.75f;
 
-    newdamage = uint32(roundf(damage - (damage * tmpvalue)));
+    newdamage = damage - (damage * tmpvalue);
 
     return (newdamage > 1) ? newdamage : 1;
 }
 
-int32 WorldObject::CalculateSpellEffectValue(Unit const* target, SpellEntry const* spellProto, SpellEffectIndex effect_index, int32 const* effBasePoints, Spell* spell) const
+float WorldObject::CalculateSpellEffectValue(Unit const* target, SpellEntry const* spellProto, SpellEffectIndex effect_index, int32 const* effBasePoints, Spell* spell) const
 {
     Unit const* pUnit = ToUnit();
     Player const* pPlayer = ToPlayer();
@@ -4122,11 +4200,11 @@ int32 WorldObject::CalculateSpellEffectValue(Unit const* target, SpellEntry cons
     int32 baseDice = int32(spellProto->EffectBaseDice[effect_index]);
     float basePointsPerLevel = spellProto->EffectRealPointsPerLevel[effect_index];
     float randomPointsPerLevel = spellProto->EffectDicePerLevel[effect_index];
-    int32 basePoints = effBasePoints
+    float value = effBasePoints
                        ? *effBasePoints - baseDice
                        : spellProto->EffectBasePoints[effect_index];
 
-    basePoints += int32(level * basePointsPerLevel);
+    value += level * basePointsPerLevel;
     int32 randomPoints = int32(spellProto->EffectDieSides[effect_index] + level * randomPointsPerLevel);
     float comboDamage = spellProto->EffectPointsPerComboPoint[effect_index];
 
@@ -4134,7 +4212,7 @@ int32 WorldObject::CalculateSpellEffectValue(Unit const* target, SpellEntry cons
     {
         case 0:
         case 1:
-            basePoints += baseDice;
+            value += baseDice;
             break;              // range 1..1
         default:
         {
@@ -4143,16 +4221,14 @@ int32 WorldObject::CalculateSpellEffectValue(Unit const* target, SpellEntry cons
                               ? irand(randomPoints, baseDice)
                               : irand(baseDice, randomPoints);
 
-            basePoints += randvalue;
+            value += randvalue;
             break;
         }
     }
 
-    int32 value = basePoints;
-
     // random damage
     if (comboDamage != 0 && pPlayer && target && (target->GetObjectGuid() == pPlayer->GetComboTargetGuid()))
-        value += (int32)(comboDamage * comboPoints);
+        value += comboDamage * comboPoints;
 
     if (pUnit)
     {
@@ -4164,12 +4240,12 @@ int32 WorldObject::CalculateSpellEffectValue(Unit const* target, SpellEntry cons
             spellProto->Effect[effect_index] != SPELL_EFFECT_WEAPON_PERCENT_DAMAGE &&
             spellProto->Effect[effect_index] != SPELL_EFFECT_KNOCK_BACK &&
             (spellProto->Effect[effect_index] != SPELL_EFFECT_APPLY_AURA || spellProto->EffectApplyAuraName[effect_index] != SPELL_AURA_MOD_DECREASE_SPEED))
-        value = int32(value * 0.25f * exp(GetLevel() * (70 - spellProto->spellLevel) / 1000.0f));
+        value = value * 0.25f * exp(GetLevel() * (70 - spellProto->spellLevel) / 1000.0f);
 
     return value;
 }
 
-void WorldObject::CalculateSpellDamage(SpellNonMeleeDamage* damageInfo, int32 damage, SpellEntry const* spellInfo, SpellEffectIndex effectIndex, WeaponAttackType attackType, Spell* spell)
+void WorldObject::CalculateSpellDamage(SpellNonMeleeDamage* damageInfo, float damage, SpellEntry const* spellInfo, SpellEffectIndex effectIndex, WeaponAttackType attackType, Spell* spell)
 {
     SpellSchoolMask damageSchoolMask = GetSchoolMask(damageInfo->school);
     Unit* pVictim = damageInfo->target;
@@ -4231,14 +4307,14 @@ void WorldObject::CalculateSpellDamage(SpellNonMeleeDamage* damageInfo, int32 da
     }
     else
         damage = 0;
-    damageInfo->damage = damage;
+    damageInfo->damage = ditheru(damage);
 }
 
 /**
  * Calculates caster part of melee damage bonuses,
  * also includes different bonuses dependent from target auras
  */
-uint32 WorldObject::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAttackType attType, SpellEntry const* spellProto, SpellEffectIndex effectIndex, DamageEffectType damagetype, uint32 stack, Spell* spell, bool flat)
+float WorldObject::MeleeDamageBonusDone(Unit* pVictim, float pdamage, WeaponAttackType attType, SpellEntry const* spellProto, SpellEffectIndex effectIndex, DamageEffectType damagetype, uint32 stack, Spell* spell, bool flat)
 {
     if (!pVictim)
         return pdamage;
@@ -4254,8 +4330,8 @@ uint32 WorldObject::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAt
 
     // FLAT damage bonus auras
     // =======================
-    int32 DoneFlat  = 0;
-    int32 APbonus   = 0;
+    float DoneFlat  = 0;
+    float APbonus   = 0;
 
     Unit* pUnit = ToUnit();
 
@@ -4350,7 +4426,7 @@ uint32 WorldObject::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAt
     else if (APbonus || DoneFlat)
     {
         bool normalized = spellProto ? spellProto->HasEffect(SPELL_EFFECT_NORMALIZED_WEAPON_DMG) : false;
-        DoneTotal += int32(APbonus / 14.0f * GetAPMultiplier(attType, normalized));
+        DoneTotal += APbonus / 14.0f * GetAPMultiplier(attType, normalized);
 
         // for weapon damage based spells we still have to apply damage done percent mods
         // (that are already included into pdamage) to not-yet included DoneFlat
@@ -4379,7 +4455,7 @@ uint32 WorldObject::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAt
     if (!flat)
         DoneTotal = 0.0f;
 
-    float tmpDamage = float(int32(pdamage) + DoneTotal * int32(stack)) * DonePercent;
+    float tmpDamage = pdamage + DoneTotal * int32(stack) * DonePercent;
 
     // apply spellmod to Done damage
     if (spellProto && pUnit)
@@ -4389,14 +4465,14 @@ uint32 WorldObject::MeleeDamageBonusDone(Unit* pVictim, uint32 pdamage, WeaponAt
     }
 
     // bonus result can be negative
-    return tmpDamage > 0 ? uint32(tmpDamage) : 0;
+    return tmpDamage > 0 ? tmpDamage : 0;
 }
 
 /**
  * Calculates caster part of healing spell bonuses,
  * also includes different bonuses dependent from target auras
  */
-uint32 WorldObject::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, SpellEffectIndex effectIndex, int32 healamount, DamageEffectType damagetype, uint32 stack, Spell* spell)
+float WorldObject::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellProto, SpellEffectIndex effectIndex, float healamount, DamageEffectType damagetype, uint32 stack, Spell* spell)
 {
     Unit* pUnit = ToUnit();
 
@@ -4416,7 +4492,7 @@ uint32 WorldObject::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spell
     // Healing Done
     // Done total percent damage auras
     float  DoneTotalMod = 1.0f;
-    int32  DoneTotal = 0;
+    float  DoneTotal = 0;
 
     if (pUnit)
     {
@@ -4450,7 +4526,7 @@ uint32 WorldObject::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spell
     }
 
     // Done fixed damage bonus auras
-    int32 DoneAdvertisedBenefit  = SpellBaseHealingBonusDone(spellProto->GetSpellSchoolMask());
+    float DoneAdvertisedBenefit  = SpellBaseHealingBonusDone(spellProto->GetSpellSchoolMask());
 
     // apply ap bonus and benefit affected by spell power implicit coeffs and spell level penalties
     DoneTotal = SpellBonusWithCoeffs(spellProto, effectIndex, DoneTotal, DoneAdvertisedBenefit, 0, damagetype, true, this, spell);
@@ -4466,12 +4542,12 @@ uint32 WorldObject::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spell
     }
     
     //DEBUG_UNIT(this, DEBUG_SPELLS_DAMAGE, "SpellHealingBonusDone[spell=%u]: (base=%u + %i) * %f. HealingPwr=%i", spellProto->Id, healamount, DoneTotal, DoneTotalMod, DoneAdvertisedBenefit);
-    return heal < 0 ? 0 : uint32(heal);
+    return heal < 0 ? 0 : heal;
 }
 
-int32 WorldObject::SpellBaseHealingBonusDone(SpellSchoolMask schoolMask)
+float WorldObject:: SpellBaseHealingBonusDone(SpellSchoolMask schoolMask)
 {
-    int32 AdvertisedBenefit = 0;
+    float AdvertisedBenefit = 0;
 
     if (Unit* pUnit = ToUnit())
     {
@@ -4489,7 +4565,7 @@ int32 WorldObject::SpellBaseHealingBonusDone(SpellSchoolMask schoolMask)
             {
                 // 1.12.* have only 1 stat type support
                 Stats usedStat = STAT_SPIRIT;
-                AdvertisedBenefit += int32(pUnit->GetStat(usedStat) * i->GetModifier()->m_amount / 100.0f);
+                AdvertisedBenefit += pUnit->GetStat(usedStat) * i->GetModifier()->m_amount / 100.0f;
             }
         }
     }
@@ -4501,7 +4577,7 @@ int32 WorldObject::SpellBaseHealingBonusDone(SpellSchoolMask schoolMask)
  * Calculates caster part of spell damage bonuses,
  * also includes different bonuses dependent from target auras
  */
-uint32 WorldObject::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, SpellEffectIndex effectIndex, uint32 pdamage, DamageEffectType damagetype, uint32 stack, Spell* spell)
+float WorldObject::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellProto, SpellEffectIndex effectIndex, float pdamage, DamageEffectType damagetype, uint32 stack, Spell* spell)
 {
     if (!spellProto || !pVictim || damagetype == DIRECT_DAMAGE)
         return pdamage;
@@ -4523,7 +4599,7 @@ uint32 WorldObject::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellP
     }
 
     float DoneTotalMod = 1.0f;
-    int32 DoneTotal = 0;
+    float DoneTotal = 0;
     Item* pWeapon = GetTypeId() == TYPEID_PLAYER ? ((Player*)this)->GetWeaponForAttack(BASE_ATTACK, true, false) : nullptr;
 
     // Creature damage
@@ -4617,7 +4693,7 @@ uint32 WorldObject::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellP
     // apply ap bonus and benefit affected by spell power implicit coeffs and spell level penalties
     DoneTotal = SpellBonusWithCoeffs(spellProto, effectIndex, DoneTotal, DoneAdvertisedBenefit, 0, damagetype, true, this, spell);
 
-    float tmpDamage = (int32(pdamage) + DoneTotal * int32(stack)) * DoneTotalMod;
+    float tmpDamage = (pdamage + DoneTotal * int32(stack)) * DoneTotalMod;
     // apply spellmod to Done damage (flat and pct)
     if (pUnit)
     {
@@ -4626,7 +4702,7 @@ uint32 WorldObject::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellP
     }
 
     //DEBUG_UNIT(this, DEBUG_SPELLS_DAMAGE, "SpellDmgBonus[spell=%u]: (base=%u + %i) * %f. SP=%i", spellProto->Id, pdamage, DoneTotal, DoneTotalMod, DoneAdvertisedBenefit);
-    return tmpDamage > 0 ? uint32(tmpDamage) : 0;
+    return tmpDamage > 0 ? tmpDamage : 0;
 }
 
 int32 WorldObject::SpellBaseDamageBonusDone(SpellSchoolMask schoolMask)
@@ -4663,7 +4739,7 @@ int32 WorldObject::SpellBaseDamageBonusDone(SpellSchoolMask schoolMask)
     return DoneAdvertisedBenefit;
 }
 
-int32 WorldObject::SpellBonusWithCoeffs(SpellEntry const* spellProto, SpellEffectIndex effectIndex, int32 total, int32 benefit, int32 ap_benefit,  DamageEffectType damagetype, bool donePart, WorldObject* pCaster, Spell* spell) const
+float WorldObject::SpellBonusWithCoeffs(SpellEntry const* spellProto, SpellEffectIndex effectIndex, float total, float benefit, float ap_benefit,  DamageEffectType damagetype, bool donePart, WorldObject* pCaster, Spell* spell) const
 {
     // Distribute Damage over multiple effects, reduce by AoE
     float coeff = 0.0f;
@@ -4673,7 +4749,7 @@ int32 WorldObject::SpellBonusWithCoeffs(SpellEntry const* spellProto, SpellEffec
     //if (GetTypeId()==TYPEID_UNIT && !((Creature*)this)->IsPet())
     //    coeff = 1.0f;
     // Check for table values
-    if (spellProto->EffectBonusCoefficient[effectIndex] >= 0)
+    if (spellProto->EffectBonusCoefficient[effectIndex] >= 0.0f)
         coeff = spellProto->EffectBonusCoefficient[effectIndex];
     // Calculate default coefficient
     else if (benefit)
@@ -4681,8 +4757,9 @@ int32 WorldObject::SpellBonusWithCoeffs(SpellEntry const* spellProto, SpellEffec
 
     if (benefit)
     {
-        // Calculate level penalty
-        float LvlPenalty = CalculateLevelPenalty(spellProto);
+        // Calculate level penalty only if spell does not have coefficient set in template,
+        // since the coefficients already have the level penalty accounted for.
+        float LvlPenalty = (spellProto->EffectBonusCoefficient[effectIndex] >= 0.0f) ? 1.0f : CalculateLevelPenalty(spellProto);
 
         // Calculate custom coefficient
         coeff = spellProto->CalculateCustomCoefficient(pCaster, damagetype, coeff, spell, donePart);
@@ -4716,9 +4793,9 @@ int32 WorldObject::SpellBonusWithCoeffs(SpellEntry const* spellProto, SpellEffec
             bUsePenalty = false;
 
         if (bUsePenalty)
-            total += int32(benefit * coeff * LvlPenalty);
+            total += benefit * coeff * LvlPenalty;
         else
-            total += int32(benefit * coeff);
+            total += benefit * coeff;
 
     }
 
@@ -4960,7 +5037,7 @@ bool WorldObject::IsNonMeleeSpellCasted(bool withDelayed, bool skipChanneled, bo
 
 bool WorldObject::IsNextSwingSpellCasted() const
 {
-    if (m_currentSpells[CURRENT_MELEE_SPELL] && m_currentSpells[CURRENT_MELEE_SPELL]->IsNextMeleeSwingSpell())
+    if (m_currentSpells[CURRENT_MELEE_SPELL] && m_currentSpells[CURRENT_MELEE_SPELL]->m_spellInfo->IsNextMeleeSwingSpell())
         return (true);
 
     return (false);
@@ -4987,7 +5064,7 @@ void WorldObject::InterruptSpellsWithInterruptFlags(uint32 flags, uint32 except)
     for (uint32 i = CURRENT_FIRST_NON_MELEE_SPELL; i < CURRENT_MAX_SPELL; ++i)
         if (Spell* spell = GetCurrentSpell(CurrentSpellTypes(i)))
             if (spell->getState() == SPELL_STATE_PREPARING && spell->GetCastedTime())
-                if (!spell->IsNextMeleeSwingSpell() && !spell->IsAutoRepeat() && !spell->IsTriggered() && (spell->m_spellInfo->InterruptFlags & flags) && spell->m_spellInfo->Id != except)
+                if (!spell->m_spellInfo->IsNextMeleeSwingSpell() && !spell->IsAutoRepeat() && !spell->IsTriggered() && (spell->m_spellInfo->InterruptFlags & flags) && spell->m_spellInfo->Id != except)
                     InterruptSpell(CurrentSpellTypes(i));
 }
 
@@ -5310,7 +5387,7 @@ SpellCastResult WorldObject::CastSpell(GameObject* pTarget, SpellEntry const* sp
     return spell->prepare(std::move(targets), triggeredByAura);
 }
 
-void WorldObject::CastCustomSpell(Unit* pTarget, uint32 spellId, int32 const* bp0, int32 const* bp1, int32 const* bp2, bool triggered, Item* castItem, Aura* triggeredByAura, ObjectGuid originalCaster, SpellEntry const* triggeredBy)
+void WorldObject::CastCustomSpell(Unit* pTarget, uint32 spellId, optional<int32> bp0, optional<int32> bp1, optional<int32> bp2, bool triggered, Item* castItem, Aura* triggeredByAura, ObjectGuid originalCaster, SpellEntry const* triggeredBy)
 {
     SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spellId);
 
@@ -5326,7 +5403,7 @@ void WorldObject::CastCustomSpell(Unit* pTarget, uint32 spellId, int32 const* bp
     CastCustomSpell(pTarget, spellInfo, bp0, bp1, bp2, triggered, castItem, triggeredByAura, originalCaster, triggeredBy);
 }
 
-void WorldObject::CastCustomSpell(Unit* pTarget, SpellEntry const* spellInfo, int32 const* bp0, int32 const* bp1, int32 const* bp2, bool triggered, Item* castItem, Aura* triggeredByAura, ObjectGuid originalCaster, SpellEntry const* triggeredBy)
+void WorldObject::CastCustomSpell(Unit* pTarget, SpellEntry const* spellInfo, optional<int32> bp0, optional<int32> bp1, optional<int32> bp2, bool triggered, Item* castItem, Aura* triggeredByAura, ObjectGuid originalCaster, SpellEntry const* triggeredBy)
 {
     if (!spellInfo)
     {
@@ -5706,7 +5783,7 @@ void WorldObject::PrintCooldownList(ChatHandler& chat) const
 }
 
 // function based on function Unit::CanAttack from 13850 client
-bool WorldObject::IsValidAttackTarget(Unit const* target) const
+bool WorldObject::IsValidAttackTarget(Unit const* target, bool checkAlive) const
 {
     ASSERT(target);
 
@@ -5717,7 +5794,7 @@ bool WorldObject::IsValidAttackTarget(Unit const* target) const
     if (FindMap() != target->FindMap())
         return false;
 
-    if (!target->IsTargetable(true, IsCharmerOrOwnerPlayerOrPlayerItself()))
+    if (!target->IsTargetable(true, IsCharmerOrOwnerPlayerOrPlayerItself(), false, checkAlive))
         return false;
 
     Unit const* pThisUnit = ToUnit();

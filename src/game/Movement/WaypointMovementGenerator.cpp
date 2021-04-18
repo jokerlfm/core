@@ -19,7 +19,6 @@
 #include <ctime>
 
 #include "WaypointMovementGenerator.h"
-#include "ObjectMgr.h"
 #include "Creature.h"
 #include "CreatureAI.h"
 #include "WaypointManager.h"
@@ -277,16 +276,6 @@ void WaypointMovementGenerator<Creature>::GetPathInformation(std::ostringstream&
 {
     oss << "WaypointMovement: Last Reached WP: " << m_lastReachedWaypoint << " ";
     oss << "(Loaded path from " << WaypointManager::GetOriginString(m_PathOrigin) << ")\n";
-}
-
-void WaypointMovementGenerator<Creature>::AddToWaypointPauseTime(int32 waitTimeDiff)
-{
-    if (!i_nextMoveTime.Passed())
-    {
-        // Prevent <= 0, the code in Update requires to catch the change from moving to not moving
-        int32 newWaitTime = i_nextMoveTime.GetExpiry() + waitTimeDiff;
-        i_nextMoveTime.Reset(newWaitTime > 0 ? newWaitTime : 1);
-    }
 }
 
 bool WaypointMovementGenerator<Creature>::SetNextWaypoint(uint32 pointId)

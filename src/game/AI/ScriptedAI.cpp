@@ -26,12 +26,12 @@ ScriptedAI::ScriptedAI(Creature* pCreature) : CreatureAI(pCreature),
 
 void ScriptedAI::MoveInLineOfSight(Unit* pWho)
 {
-    if (!m_creature->IsWithinDistInMap(pWho, m_creature->GetAttackDistance(pWho)))
+    if (!m_creature->IsWithinDistInMap(pWho, m_creature->GetAttackDistance(pWho), true, false))
         return;
 
     if (m_creature->CanInitiateAttack() && pWho->IsTargetable(true, m_creature->IsCharmerOrOwnerPlayerOrPlayerItself()) && m_creature->IsHostileTo(pWho))
     {
-        if (pWho->IsInAccessablePlaceFor(m_creature) && m_creature->IsWithinLOSInMap(pWho, true, true))
+        if (pWho->IsInAccessablePlaceFor(m_creature) && m_creature->IsWithinLOSInMap(pWho))
         {
             if (!m_creature->GetVictim())
                 AttackStart(pWho);
