@@ -3766,6 +3766,11 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 		{
 			if (myGroup->GetLeaderGuid() == pmSender->GetObjectGuid())
 			{
+				std::string memberType = "all";
+				if (commandVector.size() > 1)
+				{
+					memberType = commandVector.at(1);
+				}
 				for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
 				{
 					Player* member = groupRef->getSource();
@@ -3785,6 +3790,58 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 							{
 								continue;
 							}
+						}
+						bool roleOK = false;
+						int maxTalentType = member->GetMaxTalentCountTab();
+						if (memberType == "all")
+						{
+							roleOK = true;
+						}
+						else if (memberType == "melee")
+						{
+							if (member->GetClass() == Classes::CLASS_ROGUE || member->GetClass() == Classes::CLASS_WARRIOR)
+							{
+								roleOK = true;
+							}
+							else if (member->GetClass() == Classes::CLASS_SHAMAN)
+							{
+								if (maxTalentType == 1)
+								{
+									roleOK = true;
+								}
+							}
+							else if (member->GetClass() == Classes::CLASS_PALADIN)
+							{
+								if (maxTalentType == 1 || maxTalentType == 2)
+								{
+									roleOK = true;
+								}
+							}
+						}
+						else if (memberType == "range")
+						{
+							if (member->GetClass() == Classes::CLASS_HUNTER || member->GetClass() == Classes::CLASS_MAGE || member->GetClass() == Classes::CLASS_PRIEST || member->GetClass() != Classes::CLASS_WARLOCK)
+							{
+								roleOK = true;
+							}
+							else if (member->GetClass() == Classes::CLASS_SHAMAN)
+							{
+								if (maxTalentType == 0 || maxTalentType == 2)
+								{
+									roleOK = true;
+								}
+							}
+							else if (member->GetClass() == Classes::CLASS_PALADIN)
+							{
+								if (maxTalentType == 0)
+								{
+									roleOK = true;
+								}
+							}
+						}
+						if (!roleOK)
+						{
+							continue;
 						}
 						std::ostringstream replyStream;
 						if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
@@ -4652,19 +4709,57 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 									continue;
 								}
 							}
-							if (memberType == "melee")
+							bool roleOK = false;
+							int maxTalentType = member->GetMaxTalentCountTab();
+							if (memberType == "all")
 							{
-								if (member->GetClass() != Classes::CLASS_DRUID && member->GetClass() != Classes::CLASS_PALADIN && member->GetClass() != Classes::CLASS_ROGUE && member->GetClass() != Classes::CLASS_WARRIOR)
+								roleOK = true;
+							}
+							else if (memberType == "melee")
+							{
+								if (member->GetClass() == Classes::CLASS_ROGUE || member->GetClass() == Classes::CLASS_WARRIOR)
 								{
-									continue;
+									roleOK = true;
+								}
+								else if (member->GetClass() == Classes::CLASS_SHAMAN)
+								{
+									if (maxTalentType == 1)
+									{
+										roleOK = true;
+									}
+								}
+								else if (member->GetClass() == Classes::CLASS_PALADIN)
+								{
+									if (maxTalentType == 1 || maxTalentType == 2)
+									{
+										roleOK = true;
+									}
 								}
 							}
 							else if (memberType == "range")
 							{
-								if (member->GetClass() != Classes::CLASS_HUNTER && member->GetClass() != Classes::CLASS_MAGE && member->GetClass() != Classes::CLASS_PRIEST && member->GetClass() != Classes::CLASS_SHAMAN && member->GetClass() != Classes::CLASS_WARLOCK)
+								if (member->GetClass() == Classes::CLASS_HUNTER || member->GetClass() == Classes::CLASS_MAGE || member->GetClass() == Classes::CLASS_PRIEST || member->GetClass() != Classes::CLASS_WARLOCK)
 								{
-									continue;
+									roleOK = true;
 								}
+								else if (member->GetClass() == Classes::CLASS_SHAMAN)
+								{
+									if (maxTalentType == 0 || maxTalentType == 2)
+									{
+										roleOK = true;
+									}
+								}
+								else if (member->GetClass() == Classes::CLASS_PALADIN)
+								{
+									if (maxTalentType == 0)
+									{
+										roleOK = true;
+									}
+								}
+							}
+							if (!roleOK)
+							{
+								continue;
 							}
 							std::ostringstream replyStream;
 							if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
@@ -4734,19 +4829,57 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 								continue;
 							}
 						}
-						if (memberType == "melee")
+						bool roleOK = false;
+						int maxTalentType = member->GetMaxTalentCountTab();
+						if (memberType == "all")
 						{
-							if (member->GetClass() != Classes::CLASS_DRUID && member->GetClass() != Classes::CLASS_PALADIN && member->GetClass() != Classes::CLASS_ROGUE && member->GetClass() != Classes::CLASS_WARRIOR)
+							roleOK = true;
+						}
+						else if (memberType == "melee")
+						{
+							if (member->GetClass() == Classes::CLASS_ROGUE || member->GetClass() == Classes::CLASS_WARRIOR)
 							{
-								continue;
+								roleOK = true;
+							}
+							else if (member->GetClass() == Classes::CLASS_SHAMAN)
+							{
+								if (maxTalentType == 1)
+								{
+									roleOK = true;
+								}
+							}
+							else if (member->GetClass() == Classes::CLASS_PALADIN)
+							{
+								if (maxTalentType == 1 || maxTalentType == 2)
+								{
+									roleOK = true;
+								}
 							}
 						}
 						else if (memberType == "range")
 						{
-							if (member->GetClass() != Classes::CLASS_HUNTER && member->GetClass() != Classes::CLASS_MAGE && member->GetClass() != Classes::CLASS_PRIEST && member->GetClass() != Classes::CLASS_SHAMAN && member->GetClass() != Classes::CLASS_WARLOCK)
+							if (member->GetClass() == Classes::CLASS_HUNTER || member->GetClass() == Classes::CLASS_MAGE || member->GetClass() == Classes::CLASS_PRIEST || member->GetClass() != Classes::CLASS_WARLOCK)
 							{
-								continue;
+								roleOK = true;
 							}
+							else if (member->GetClass() == Classes::CLASS_SHAMAN)
+							{
+								if (maxTalentType == 0 || maxTalentType == 2)
+								{
+									roleOK = true;
+								}
+							}
+							else if (member->GetClass() == Classes::CLASS_PALADIN)
+							{
+								if (maxTalentType == 0)
+								{
+									roleOK = true;
+								}
+							}
+						}
+						if (!roleOK)
+						{
+							continue;
 						}
 						std::ostringstream replyStream;
 						if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])
@@ -4815,19 +4948,57 @@ void RobotManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Player
 								continue;
 							}
 						}
-						if (memberType == "melee")
+						bool roleOK = false;
+						int maxTalentType = member->GetMaxTalentCountTab();
+						if (memberType == "all")
 						{
-							if (member->GetClass() != Classes::CLASS_DRUID && member->GetClass() != Classes::CLASS_PALADIN && member->GetClass() != Classes::CLASS_ROGUE && member->GetClass() != Classes::CLASS_WARRIOR)
+							roleOK = true;
+						}
+						else if (memberType == "melee")
+						{
+							if (member->GetClass() == Classes::CLASS_ROGUE || member->GetClass() == Classes::CLASS_WARRIOR)
 							{
-								continue;
+								roleOK = true;
+							}
+							else if (member->GetClass() == Classes::CLASS_SHAMAN)
+							{
+								if (maxTalentType == 1)
+								{
+									roleOK = true;
+								}
+							}
+							else if (member->GetClass() == Classes::CLASS_PALADIN)
+							{
+								if (maxTalentType == 1 || maxTalentType == 2)
+								{
+									roleOK = true;
+								}
 							}
 						}
 						else if (memberType == "range")
 						{
-							if (member->GetClass() != Classes::CLASS_HUNTER && member->GetClass() != Classes::CLASS_MAGE && member->GetClass() != Classes::CLASS_PRIEST && member->GetClass() != Classes::CLASS_SHAMAN && member->GetClass() != Classes::CLASS_WARLOCK)
+							if (member->GetClass() == Classes::CLASS_HUNTER || member->GetClass() == Classes::CLASS_MAGE || member->GetClass() == Classes::CLASS_PRIEST || member->GetClass() != Classes::CLASS_WARLOCK)
 							{
-								continue;
+								roleOK = true;
 							}
+							else if (member->GetClass() == Classes::CLASS_SHAMAN)
+							{
+								if (maxTalentType == 0 || maxTalentType == 2)
+								{
+									roleOK = true;
+								}
+							}
+							else if (member->GetClass() == Classes::CLASS_PALADIN)
+							{
+								if (maxTalentType == 0)
+								{
+									roleOK = true;
+								}
+							}
+						}
+						if (!roleOK)
+						{
+							continue;
 						}
 						std::ostringstream replyStream;
 						if (Strategy_Group* rs = (Strategy_Group*)member->rai->strategyMap[myGroup->groupStrategyIndex])

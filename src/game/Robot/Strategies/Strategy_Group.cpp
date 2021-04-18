@@ -684,41 +684,33 @@ bool Strategy_Group::DPS()
 	{
 		if (Group* myGroup = me->GetGroup())
 		{
-			Player* tank = NULL;
-			for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
+			if (Unit* iconTarget = me->GetUnit(*me, myGroup->GetOGByTargetIcon(4)))
 			{
-				if (Player* member = groupRef->getSource())
+				if (sb->DPS(iconTarget, Chasing()))
 				{
-					if (member->IsAlive())
-					{
-						if (member->groupRole == GroupRole::GroupRole_Tank)
-						{
-							if (me->GetDistance(member) < ATTACK_RANGE_LIMIT)
-							{
-								tank = member;
-								break;
-							}
-						}
-					}
-				}
-			}
-			if (tank)
-			{
-				if (Unit* tankTarget = tank->GetSelectedUnit())
-				{
-					if (sb->DPS(tankTarget, Chasing()))
-					{
-						return true;
-					}
+					return true;
 				}
 			}
 			if (Unit* myTarget = me->GetSelectedUnit())
 			{
-				if (!sRobotManager->HasAura(myTarget, "Polymorph"))
+				if (myGroup->GetTargetIconByOG(myTarget->GetObjectGuid()) == -1)
 				{
 					if (sb->DPS(myTarget, Chasing()))
 					{
 						return true;
+					}
+				}
+			}
+			if (Player* leader = (Player*)me->GetUnit(*me, myGroup->GetLeaderGuid()))
+			{
+				if (Unit* leaderTarget = leader->GetSelectedUnit())
+				{
+					if (myGroup->GetTargetIconByOG(leaderTarget->GetObjectGuid()) == -1)
+					{
+						if (sb->DPS(leaderTarget, Chasing()))
+						{
+							return true;
+						}
 					}
 				}
 			}
@@ -728,29 +720,20 @@ bool Strategy_Group::DPS()
 			{
 				if (Unit* eachAttacker = gaIT->second)
 				{
-					if (me->IsValidAttackTarget(eachAttacker))
+					if (myGroup->GetTargetIconByOG(eachAttacker->GetObjectGuid()) == -1)
 					{
-						if (eachAttacker->IsAlive())
+						uint32 eachHealth = eachAttacker->GetHealth();
+						if (!lowestAttacker)
 						{
-							if (me->GetDistance(eachAttacker) < ATTACK_RANGE_LIMIT)
+							lowestAttacker = eachAttacker;
+							lowestHP = eachHealth;
+						}
+						else
+						{
+							if (eachHealth < lowestHP)
 							{
-								if (!sRobotManager->HasAura(eachAttacker, "Polymorph"))
-								{
-									uint32 eachHealth = eachAttacker->GetHealth();
-									if (!lowestAttacker)
-									{
-										lowestAttacker = eachAttacker;
-										lowestHP = eachHealth;
-									}
-									else
-									{
-										if (eachHealth < lowestHP)
-										{
-											lowestAttacker = eachAttacker;
-											lowestHP = eachHealth;
-										}
-									}
-								}
+								lowestAttacker = eachAttacker;
+								lowestHP = eachHealth;
 							}
 						}
 					}
@@ -776,47 +759,33 @@ bool Strategy_Group::Tank()
 	{
 		return false;
 	}
-	if (Unit* myTarget = me->GetSelectedUnit())
-	{
-		if (myTarget->GetTargetGuid() != me->GetObjectGuid())
-		{
-			if (!sRobotManager->HasAura(myTarget, "Polymorph"))
-			{
-				if (sb->Tank(myTarget, Chasing()))
-				{
-					sb->Taunt(myTarget);
-					return true;
-				}
-			}
-		}
-	}
 	if (Group* myGroup = me->GetGroup())
 	{
+		if (Unit* iconTarget = me->GetUnit(*me, myGroup->GetOGByTargetIcon(4)))
+		{
+			if (sb->Tank(iconTarget, Chasing()))
+			{
+				return true;
+			}
+		}
 		for (std::unordered_map<ObjectGuid, Unit*>::iterator gaIT = myGroup->groupAttackersMap.begin(); gaIT != myGroup->groupAttackersMap.end(); gaIT++)
 		{
 			if (Unit* eachAttacker = gaIT->second)
 			{
 				if (eachAttacker->GetTargetGuid() != me->GetObjectGuid())
 				{
-					if (!sRobotManager->HasAura(eachAttacker, "Polymorph"))
+					if (myGroup->GetTargetIconByOG(eachAttacker->GetObjectGuid()) == -1)
 					{
-						if (sb->Tank(eachAttacker, Chasing()))
+						float eachOTDistance = eachAttacker->GetDistance3dToCenter(me);
+						if (eachOTDistance < MID_RANGE)
 						{
-							sb->Taunt(eachAttacker);
-							return true;
+							if (sb->Tank(eachAttacker, Chasing()))
+							{
+								myGroup->SetTargetIcon(4, eachAttacker->GetObjectGuid());
+								return true;
+							}
 						}
 					}
-				}
-			}
-		}
-		if (Unit* myTarget = me->GetSelectedUnit())
-		{
-			if (!sRobotManager->HasAura(myTarget, "Polymorph"))
-			{
-				if (sb->Tank(myTarget, Chasing()))
-				{
-					sb->Taunt(myTarget);
-					return true;
 				}
 			}
 		}
@@ -826,19 +795,13 @@ bool Strategy_Group::Tank()
 		{
 			if (Unit* eachAttacker = gaIT->second)
 			{
-				if (eachAttacker->IsAlive())
+				if (myGroup->GetTargetIconByOG(eachAttacker->GetObjectGuid()) == -1)
 				{
-					if (me->IsValidAttackTarget(eachAttacker))
+					float eachDistance = me->GetDistance3dToCenter(eachAttacker);
+					if (eachDistance < nearestDistance)
 					{
-						float eachDistance = me->GetDistance3dToCenter(eachAttacker);
-						if (eachDistance < nearestDistance)
-						{
-							if (!sRobotManager->HasAura(eachAttacker, "Polymorph"))
-							{
-								nearestDistance = eachDistance;
-								nearestAttacker = eachAttacker;
-							}
-						}
+						nearestDistance = eachDistance;
+						nearestAttacker = eachAttacker;
 					}
 				}
 			}
@@ -847,6 +810,7 @@ bool Strategy_Group::Tank()
 		{
 			if (sb->Tank(nearestAttacker, Chasing()))
 			{
+				myGroup->SetTargetIcon(4, nearestAttacker->GetObjectGuid());
 				return true;
 			}
 		}

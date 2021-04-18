@@ -137,7 +137,66 @@ bool Script_Paladin::Heal_Holy(Unit* pmTarget, bool pmCure)
 
 bool Script_Paladin::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
 {
-	return false;
+	if (!pmTarget)
+	{
+		return false;
+	}
+	else if (!pmTarget->IsAlive())
+	{
+		return false;
+	}
+	if (!me)
+	{
+		return false;
+	}
+	else if (!me->IsValidAttackTarget(pmTarget))
+	{
+		return false;
+	}
+	float targetDistance = me->GetDistance(pmTarget);
+	if (pmChase)
+	{
+		if (targetDistance > ATTACK_RANGE_LIMIT)
+		{
+			return false;
+		}
+		if (!Chase(pmTarget))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		if (targetDistance > RANGED_MAX_DISTANCE)
+		{
+			return false;
+		}
+		if (!me->isInFront(pmTarget, M_PI / 16))
+		{
+			me->SetFacingToObject(pmTarget);
+		}
+	}
+	me->Attack(pmTarget, true);
+	if (pmTarget->GetHealthPercent() < 20.0f)
+	{
+		if (CastSpell(pmTarget, "Hammer of Wrath", MELEE_MAX_DISTANCE))
+		{
+			return true;
+		}
+	}
+	if (pmTarget->IsNonMeleeSpellCasted(false))
+	{
+		if (CastSpell(pmTarget, "Hammer of Justice", MELEE_MAX_DISTANCE))
+		{
+			return true;
+		}
+	}
+	if (CastSpell(pmTarget, "Judgement of Light", MELEE_MAX_DISTANCE))
+	{
+		return true;
+	}
+
+	return true;
 }
 
 bool Script_Paladin::DPS(Unit* pmTarget, bool pmChase)
