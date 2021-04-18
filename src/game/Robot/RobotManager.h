@@ -23,8 +23,12 @@
 # define FOLLOW_MIN_DISTANCE 1.0f
 #endif
 
+#ifndef FOLLOW_NEAR_DISTANCE
+# define FOLLOW_NEAR_DISTANCE 10.0f
+#endif
+
 #ifndef FOLLOW_NORMAL_DISTANCE
-# define FOLLOW_NORMAL_DISTANCE 15.0f
+# define FOLLOW_NORMAL_DISTANCE 18.0f
 #endif
 
 #ifndef FOLLOW_FAR_DISTANCE
@@ -36,11 +40,11 @@
 #endif
 
 #ifndef MELEE_MIN_DISTANCE
-# define MELEE_MIN_DISTANCE 1.0f
+# define MELEE_MIN_DISTANCE 0.5f
 #endif
 
 #ifndef MELEE_MAX_DISTANCE
-# define MELEE_MAX_DISTANCE 3.0f
+# define MELEE_MAX_DISTANCE 2.0f
 #endif
 
 #ifndef RANGED_NORMAL_DISTANCE
@@ -48,15 +52,15 @@
 #endif
 
 #ifndef RANGED_FAR_DISTANCE
-# define RANGED_FAR_DISTANCE 30.0f
+# define RANGED_FAR_DISTANCE 29.0f
 #endif
 
 #ifndef RANGED_MAX_DISTANCE
-# define RANGED_MAX_DISTANCE 45.0f
+# define RANGED_MAX_DISTANCE 44.0f
 #endif
 
 #ifndef HEAL_MAX_DISTANCE
-# define HEAL_MAX_DISTANCE 40.0f
+# define HEAL_MAX_DISTANCE 39.0f
 #endif
 
 #ifndef ATTACK_RANGE_LIMIT
@@ -80,6 +84,13 @@ enum RobotType :uint32
 	RobotType_Raid = 1,
 };
 
+enum RobotCampType :uint16
+{
+	RobotCampType_All = 0,
+	RobotCampType_Alliance = 1,
+	RobotCampType_Horde = 2
+};
+
 class RobotManager
 {
 	RobotManager();
@@ -96,7 +107,7 @@ public:
 	bool CreateRobotAccount(std::string pmAccountName);
 	uint32 CheckAccountCharacter(uint32 pmAccountID);
 	uint32 GetCharacterRace(uint32 pmCharacterID);
-	uint32 CreateRobotCharacter(uint32 pmAccountID);
+	uint32 CreateRobotCharacter(uint32 pmAccountID, uint16 pmCampType = RobotCampType::RobotCampType_All);
 	uint32 CreateRobotCharacter(uint32 pmAccountID, uint32 pmCharacterClass, uint32 pmCharacterRace);
 	bool PrepareRobot(Player* pmRobot);
 	std::unordered_set<uint32> GetUsableEquipSlot(const ItemPrototype* pmIT);
@@ -127,6 +138,8 @@ public:
 	uint32 GetAuraStack(Unit* pmTarget, std::string pmSpellName, Unit* pmCaster = NULL);
 
 public:
+	std::unordered_map<uint32, std::unordered_map<uint32, uint32>> allianceRaces;
+	std::unordered_map<uint32, std::unordered_map<uint32, uint32>> hordeRaces;
 	std::unordered_map<uint32, std::unordered_map<uint32, uint32>> availableRaces;
 	std::unordered_map<uint32, std::string> robotNameMap;
 

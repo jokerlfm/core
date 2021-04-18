@@ -13,6 +13,10 @@
 # define PALADIN_RANGE_DISTANCE 30
 #endif
 
+#ifndef PALADIN_HEAL_DISTANCE
+# define PALADIN_HEAL_DISTANCE 40
+#endif
+
 #include "Script_Base.h"
 
 enum PaladinAuraType :uint32
@@ -32,14 +36,21 @@ enum PaladinBlessingType :uint32
     PaladinBlessingType_Wisdom = 2,
 };
 
+enum PaladinSealType :uint32
+{
+    PaladinSealType_Righteousness = 0,
+    PaladinSealType_Crusader = 1,
+    PaladinSealType_Justice = 2,
+};
+
 class Script_Paladin :public Script_Base
 {
 public:    
     Script_Paladin(Player* pmMe);
 
     void Reset();
-    bool DPS(Unit* pmTarget, bool pmChase = true);
-    bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = false);
+    bool DPS(Unit* pmTarget, bool pmChase = true, bool pmAOE = false);
+    bool Tank(Unit* pmTarget, bool pmChase, bool pmAOE = false);
     bool Heal(Unit* pmTarget, bool pmCure = true);
     bool Buff(Unit* pmTarget, bool pmCure = true);
 
@@ -50,5 +61,6 @@ public:
 
     uint32 auraType;
     uint32 blessingType;
+    uint32 sealType;
 };
 #endif

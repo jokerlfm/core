@@ -11,8 +11,8 @@ class Script_Warlock :public Script_Base
 {
 public:
     Script_Warlock(Player* pmMe);
-    bool DPS(Unit* pmTarget, bool pmChase = true);
-    bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = false);
+    bool DPS(Unit* pmTarget, bool pmChase = true, bool pmAOE = false);
+    bool Tank(Unit* pmTarget, bool pmChase, bool pmAOE = false);
     bool Heal(Unit* pmTarget, bool pmCure = true);
     bool Buff(Unit* pmTarget, bool pmCure = true);
 

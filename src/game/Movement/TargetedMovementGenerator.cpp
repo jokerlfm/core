@@ -82,24 +82,14 @@ void TargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
 
         // TRANSPORT_VMAPS
         if (transport)
-        {
-            // EJ no relative near angle 
-            //i_target->GetNearPoint2D(x, y, m_fOffset, m_fAngle + i_target->GetOrientation());
-            //z = srcZ;
-            if (WorldObject* targetWO = i_target->ToWorldObject())
-            {
-                targetWO->GetNearPoint(targetWO, x, y, z, targetWO->GetObjectBoundingRadius(), m_fOffset, targetWO->GetAngle(owner.GetPositionX(), owner.GetPositionY()));
-            }            
+        {         
+            i_target->GetNearPoint2D(x, y, m_fOffset, m_fAngle + i_target->GetOrientation());
+            z = srcZ;
         }
         else
         {
-            // EJ no relative near angle 
-            //i_target->GetClosePoint(x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, m_fAngle, &owner);
-            if (WorldObject* targetWO = i_target->ToWorldObject())
-            {
-                targetWO->GetNearPoint(targetWO, x, y, z, targetWO->GetObjectBoundingRadius(), m_fOffset, targetWO->GetAngle(owner.GetPositionX(), owner.GetPositionY()));
-            }
-        }
+            i_target->GetClosePoint(x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, m_fAngle, &owner);
+	}
         if (!i_target->m_movementInfo.HasMovementFlag(MOVEFLAG_SWIMMING) && !i_target->IsInWater())
         {
             if (!owner.GetMap()->GetWalkHitPosition(transport, srcX, srcY, srcZ, x, y, z))
@@ -262,6 +252,9 @@ bool ChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
     if (!owner.IsAlive())
         return true;
 
+    if (owner.movespline->IsUninterruptible() && !owner.movespline->Finalized())
+        return true;
+
     if (owner.HasUnitState(UNIT_STAT_CAN_NOT_MOVE | UNIT_STAT_POSSESSED))
     {
         _clearUnitStateMove(owner);
@@ -360,7 +353,7 @@ bool ChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
         {
             // For players need to actually send the new orientation.
             // Creatures automatically face their target in client.
-            if (!owner.HasInArc(2 * M_PI_F / 3, i_target.getTarget()))
+            if (!owner.HasInArc(i_target.getTarget(), 2 * M_PI_F / 3))
             {
                 owner.SetInFront(i_target.getTarget());
                 owner.SetFacingTo(owner.GetAngle(i_target.getTarget()));
@@ -368,7 +361,7 @@ bool ChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
         }
         else
         {
-            if (!owner.HasInArc(0.01f, i_target.getTarget()))
+            if (!owner.HasInArc(i_target.getTarget(), 0.01f))
             {
                 owner.SetInFront(i_target.getTarget());
                 // EJ add set facing to 
@@ -410,10 +403,22 @@ bool ChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
                 }
             }
         }
-        
+
+        // Mobs should chase you infinitely if you stop and wait every few seconds.
+        m_leashExtensionTimer.Update(time_diff);
+        if (m_leashExtensionTimer.Passed())
+        {
+            m_leashExtensionTimer.Reset(5000);
+            if (Creature* creature = owner.ToCreature())
+                creature->UpdateLeashExtensionTime();
+        }
     }
     else if (m_bRecalculateTravel)
+    {
+        m_leashExtensionTimer.Reset(5000);
         owner.GetMotionMaster()->SetNeedAsyncUpdate();
+    }
+
     return true;
 }
 
@@ -660,7 +665,7 @@ bool FollowMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
     {
         MovementInform(owner);
 
-        if (m_fAngle == 0.f && !owner.HasInArc(0.01f, i_target.getTarget()))
+        if (m_fAngle == 0.f && !owner.HasInArc(i_target.getTarget(), 0.01f))
         {
             owner.SetInFront(i_target.getTarget());
             // EJ add set facing to 

@@ -36,7 +36,6 @@ public:
 	uint32 activeMovementType;
 	float chaseDistanceMin;
 	float chaseDistanceMax;
-	int limitDelay;
 };
 
 class Script_Base
@@ -44,8 +43,8 @@ class Script_Base
 public:
 	Script_Base(Player* pmMe);
 	virtual void Reset();
-	virtual bool DPS(Unit* pmTarget, bool pmChase = true);
-	virtual bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = true);
+	virtual bool DPS(Unit* pmTarget, bool pmChase = true, bool pmAOE = false);
+	virtual bool Tank(Unit* pmTarget, bool pmChase, bool pmAOE = false);
 	virtual bool SubTank(Unit* pmTarget, bool pmChase);
 	virtual bool Pull(Unit* pmTarget);
 	virtual bool Taunt(Unit* pmTarget);

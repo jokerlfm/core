@@ -29,8 +29,8 @@ public:
     Script_Druid(Player* pmMe);
     void Update(uint32 pmDiff);
     bool SubTank(Unit* pmTarget, bool pmChase);
-    bool DPS(Unit* pmTarget, bool pmChase = true);
-    bool Tank(Unit* pmTarget, bool pmChase, bool pmSingle = false);
+    bool DPS(Unit* pmTarget, bool pmChase = true, bool pmAOE = false);
+    bool Tank(Unit* pmTarget, bool pmChase, bool pmAOE = false);
     bool Taunt(Unit* pmTarget);
     bool Heal(Unit* pmTarget, bool pmCure = true);
     bool Buff(Unit* pmTarget, bool pmCure = true);
@@ -38,7 +38,7 @@ public:
     bool DPS_Balance(Unit* pmTarget, bool pmChase);
     bool DPS_Feral(Unit* pmTarget, bool pmChase);
     bool DPS_Common(Unit* pmTarget, bool pmChase);
-    bool Tank_Feral(Unit* pmTarget, bool pmChase, bool pmSingle = false);
+    bool Tank_Feral(Unit* pmTarget, bool pmChase, bool pmAOE = false);
     bool Heal_Restoration(Unit* pmTarget, bool pmCure);
 
     int demoralizingRoarDelay;

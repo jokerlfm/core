@@ -16,15 +16,19 @@ bool Script_Hunter::Heal(Unit* pmTarget, bool pmCure)
 	return false;
 }
 
-bool Script_Hunter::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Hunter::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	return false;
 }
 
-bool Script_Hunter::DPS(Unit* pmTarget, bool pmChase)
+bool Script_Hunter::DPS(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	bool meResult = false;
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
 	{
 		return false;
 	}

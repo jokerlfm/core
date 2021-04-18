@@ -14,15 +14,19 @@ bool Script_Warlock::Heal(Unit* pmTarget, bool pmCure)
 	return false;
 }
 
-bool Script_Warlock::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Warlock::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	return false;
 }
 
-bool Script_Warlock::DPS(Unit* pmTarget, bool pmChase)
+bool Script_Warlock::DPS(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	bool meResult = false;
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
 	{
 		return false;
 	}

@@ -6726,3 +6726,4 @@ uint32 RobotManager::GetAuraStack(Unit* pmTarget, std::string pmSpellName, Unit*
 
 	return auraCount;
 }
+

@@ -105,11 +105,11 @@ void RobotEntity::Update(uint32 pmDiff)
 		{
 			if (robot_type == RobotType::RobotType_World)
 			{
-				character_id = sRobotManager->CreateRobotCharacter(account_id);
+				character_id = sRobotManager->CreateRobotCharacter(account_id, RobotCampType::RobotCampType_Alliance);
 			}
 			else if (robot_type == RobotType::RobotType_Raid)
 			{
-				uint32  targetClass = Classes::CLASS_SHAMAN;
+				uint32  targetClass = Classes::CLASS_PALADIN;
 				uint32 raceIndex = urand(0, sRobotManager->availableRaces[targetClass].size() - 1);
 				uint32 targetRace = sRobotManager->availableRaces[targetClass][raceIndex];
 				character_id = sRobotManager->CreateRobotCharacter(account_id, targetClass, targetRace);

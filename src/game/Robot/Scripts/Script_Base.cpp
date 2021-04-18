@@ -18,8 +18,7 @@ RobotMovement::RobotMovement(Player* pmMe)
 	chaseTarget = NULL;
 	activeMovementType = RobotMovementType::RobotMovementType_None;
 	chaseDistanceMin = CONTACT_DISTANCE;
-	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;	
-	limitDelay = 0;
+	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;
 }
 
 void RobotMovement::ResetMovement()
@@ -27,8 +26,7 @@ void RobotMovement::ResetMovement()
 	chaseTarget = NULL;
 	activeMovementType = RobotMovementType::RobotMovementType_None;
 	chaseDistanceMin = CONTACT_DISTANCE;
-	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;	
-	limitDelay = 0;
+	chaseDistanceMax = VISIBILITY_DISTANCE_NORMAL;
 	if (me)
 	{
 		me->GetMotionMaster()->Clear();
@@ -38,7 +36,6 @@ void RobotMovement::ResetMovement()
 
 bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float pmChaseDistanceMin, uint32 pmLimitDelay)
 {
-	limitDelay = pmLimitDelay;
 	if (!me)
 	{
 		return false;
@@ -67,7 +64,7 @@ bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float p
 	{
 		return false;
 	}
-	float unitTargetDistance = me->GetDistance3dToCenter(pmChaseTarget);
+	float unitTargetDistance = me->GetDistance(pmChaseTarget);
 	if (unitTargetDistance > VISIBILITY_DISTANCE_LARGE)
 	{
 		return false;
@@ -82,6 +79,8 @@ bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float p
 			}
 		}
 	}
+	chaseDistanceMax = pmChaseDistanceMax;
+	chaseDistanceMin = pmChaseDistanceMin;
 	if (activeMovementType == RobotMovementType::RobotMovementType_Chase)
 	{
 		if (chaseTarget)
@@ -98,19 +97,17 @@ bool RobotMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMax, float p
 		me->GetMotionMaster()->Clear();
 	}
 	chaseTarget = pmChaseTarget;
-	chaseDistanceMax = pmChaseDistanceMax;
-	chaseDistanceMin = pmChaseDistanceMin;
 	activeMovementType = RobotMovementType::RobotMovementType_Chase;
 
 	if (me->GetStandState() != UnitStandStateType::UNIT_STAND_STATE_STAND)
 	{
 		me->SetStandState(UnitStandStateType::UNIT_STAND_STATE_STAND);
 	}
-	if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax + MELEE_MAX_DISTANCE)
+	if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax + MIN_DISTANCE_GAP)
 	{
 		if (me->IsWithinLOSInMap(chaseTarget))
 		{
-			if (!me->HasInArc(M_PI / 4, chaseTarget))
+			if (!me->HasInArc(chaseTarget, M_PI / 4))
 			{
 				me->SetFacingToObject(chaseTarget);
 			}
@@ -131,7 +128,6 @@ void RobotMovement::MovePosition(Position pmTargetPosition, uint32 pmLimitDelay)
 
 void RobotMovement::MovePosition(float pmX, float pmY, float pmZ, uint32 pmLimitDelay)
 {
-	limitDelay = pmLimitDelay;
 	if (!me)
 	{
 		return;
@@ -145,10 +141,6 @@ void RobotMovement::MovePosition(float pmX, float pmY, float pmZ, uint32 pmLimit
 		return;
 	}
 	if (me->HasUnitState(UnitState::UNIT_STAT_NOT_MOVE))
-	{
-		return;
-	}
-	if (me->HasUnitState(UnitState::UNIT_STAT_ROAMING_MOVE))
 	{
 		return;
 	}
@@ -213,10 +205,6 @@ void RobotMovement::Update(uint32 pmDiff)
 	{
 		return;
 	}
-	if (me->HasUnitState(UnitState::UNIT_STAT_ROAMING_MOVE))
-	{
-		return;
-	}
 	if (me->IsNonMeleeSpellCasted(false, false, true))
 	{
 		return;
@@ -226,14 +214,6 @@ void RobotMovement::Update(uint32 pmDiff)
 		ResetMovement();
 		return;
 	}
-	if (limitDelay > 0)
-	{
-		limitDelay -= pmDiff;
-		if (limitDelay <= 0)
-		{
-			ResetMovement();
-		}
-	}
 	switch (activeMovementType)
 	{
 	case RobotMovementType::RobotMovementType_None:
@@ -242,7 +222,7 @@ void RobotMovement::Update(uint32 pmDiff)
 	}
 	case RobotMovementType::RobotMovementType_Point:
 	{
-		float distance = me->GetDistance3dToCenter(pointTarget);
+		float distance = me->GetDistance(pointTarget);
 		if (distance > VISIBILITY_DISTANCE_LARGE || distance < CONTACT_DISTANCE)
 		{
 			ResetMovement();
@@ -284,14 +264,14 @@ void RobotMovement::Update(uint32 pmDiff)
 				}
 			}
 		}
-		float unitTargetDistance = me->GetDistance3dToCenter(chaseTarget);
+		float unitTargetDistance = me->GetDistance(chaseTarget);
 		if (unitTargetDistance > VISIBILITY_DISTANCE_LARGE)
 		{
 			ResetMovement();
 			break;
 		}
 		bool ok = false;
-		if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax + MELEE_MAX_DISTANCE)
+		if (unitTargetDistance >= chaseDistanceMin && unitTargetDistance <= chaseDistanceMax + MIN_DISTANCE_GAP)
 		{
 			if (me->IsWithinLOSInMap(chaseTarget))
 			{
@@ -299,7 +279,7 @@ void RobotMovement::Update(uint32 pmDiff)
 				{
 					me->StopMoving();
 				}
-				else if (!me->HasInArc(M_PI / 4, chaseTarget))
+				if (!me->HasInArc(chaseTarget, M_PI / 4))
 				{
 					me->SetFacingToObject(chaseTarget);
 				}
@@ -423,12 +403,12 @@ void Script_Base::Update(uint32 pmDiff)
 	return;
 }
 
-bool Script_Base::DPS(Unit* pmTarget, bool pmChase)
+bool Script_Base::DPS(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	return false;
 }
 
-bool Script_Base::Tank(Unit* pmTarget, bool pmChase, bool pmSingle)
+bool Script_Base::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 {
 	return false;
 }
@@ -549,13 +529,13 @@ void Script_Base::IdentifyCharacterSpells()
 	}
 	case Classes::CLASS_PALADIN:
 	{
-		if (characterTalentTab == 0)
-		{
-			characterType = 2;
-		}
-		else if (characterTalentTab == 1)
+		if (me->GetTalentCount(1) > 0)
 		{
 			characterType = 1;
+		}
+		else if (characterTalentTab == 0)
+		{
+			characterType = 2;
 		}
 		break;
 	}
@@ -688,10 +668,6 @@ bool Script_Base::Follow(Unit* pmTarget, float pmDistance)
 		return false;
 	}
 	if (me->HasUnitState(UnitState::UNIT_STAT_NOT_MOVE))
-	{
-		return false;
-	}
-	if (me->HasUnitState(UnitState::UNIT_STAT_ROAMING_MOVE))
 	{
 		return false;
 	}
@@ -983,6 +959,10 @@ bool Script_Base::Eat()
 	{
 		return false;
 	}
+	if (!me->IsAlive())
+	{
+		return false;
+	}
 	if (me->IsInCombat())
 	{
 		return false;
@@ -1023,6 +1003,7 @@ bool Script_Base::Eat()
 	{
 		if (UseItem(pFood, me))
 		{
+			rm->ResetMovement();
 			result = true;
 		}
 	}
@@ -1035,6 +1016,10 @@ bool Script_Base::Drink()
 	bool result = false;
 
 	if (!me)
+	{
+		return false;
+	}
+	if (!me->IsAlive())
 	{
 		return false;
 	}
@@ -1077,6 +1062,7 @@ bool Script_Base::Drink()
 	{
 		if (UseItem(pDrink, me))
 		{
+			rm->ResetMovement();
 			result = true;
 		}
 	}
