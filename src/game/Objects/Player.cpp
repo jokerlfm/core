@@ -79,9 +79,6 @@
 #include "world/world_event_naxxramas.h"
 #include "world/world_event_wareffort.h"
 
- // lfm ninger 
-//#include "RobotAI.h"
-
 #define ZONE_UPDATE_INTERVAL (1*IN_MILLISECONDS)
 
 #define PLAYER_SKILL_INDEX(x)       (PLAYER_SKILL_INFO_1_1 + ((x)*3))
@@ -600,9 +597,10 @@ Player::Player(WorldSession* session) : Unit(),
     m_longSightSpell = 0;
     m_longSightRange = 0.0f;
 
-    // lfm robot
+    // lfm ninger
     groupRole = 0;    
-    rai = NULL;
+    awarenessMap.clear();
+    activeAwarenessIndex = 0;
     // lfm auto fish
     fishing = false;
 }
@@ -1489,12 +1487,6 @@ void Player::Update(uint32 update_diff, uint32 p_time)
             GetSession()->ProcessAnticheatAction("MovementAnticheat", reason.str().c_str(), cheatAction, sWorld.getConfig(CONFIG_UINT32_AC_MOVEMENT_BAN_DURATION));
     }
 
-    // lfm ninger 
-    //if (rai)
-    //{
-    //    rai->Update(p_time);
-    //}
-
     // lfm auto fish
     if (fishing)
     {
@@ -1502,13 +1494,10 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         fishing = false;
     }
 
-    if (Group* myGroup = GetGroup())
+    // lfm ninger updates 
+    if (awarenessMap.find(activeAwarenessIndex) != awarenessMap.end())
     {
-        if (myGroup->GetLeaderGuid() == GetObjectGuid())
-        {
-            // lfm group updates
-            myGroup->UpdateGroupAttackers();
-        }
+        awarenessMap[activeAwarenessIndex]->Update(p_time);
     }
 }
 
@@ -21636,7 +21625,7 @@ void Player::CreatePacketBroadcaster()
     sWorld.GetBroadcaster()->RegisterPlayer(m_broadcaster);
 }
 
-// lfm robot 
+// lfm ninger 
 uint32 Player::GetMaxTalentCountTab()
 {
     std::unordered_map<uint32, uint32> tabCountMap;

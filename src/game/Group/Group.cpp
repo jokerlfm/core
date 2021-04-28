@@ -40,9 +40,6 @@
 
 #include <array>
 
-// lfm ninger 
-//#include "RobotAI.h"
-
 GroupMemberStatus GetGroupMemberStatus(Player const* member = nullptr)
 {
     uint8 flags = MEMBER_STATUS_OFFLINE;
@@ -85,8 +82,7 @@ Group::Group() : m_Id(0), m_leaderLastOnline(0), m_groupType(GROUPTYPE_NORMAL),
                  m_bgGroup(nullptr), m_lootMethod(FREE_FOR_ALL), m_lootThreshold(ITEM_QUALITY_UNCOMMON),
                  m_subGroupsCounts(nullptr), m_groupTeam(TEAM_NONE), m_LFGAreaId(0)
 {
-    // lfm group strategy index
-    //groupStrategyIndex = Strategy_Index::Strategy_Index_Group;
+
 }
 
 Group::~Group()
@@ -2374,83 +2370,4 @@ int Group::GetTargetIconByOG(ObjectGuid pmOG)
         }
     }
     return -1;
-}
-
-// lfm group attackers
-void Group::UpdateGroupAttackers()
-{
-    groupAttackersMap.clear();
-    for (GroupReference* groupRef = GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-    {
-        if (Player* member = groupRef->getSource())
-        {
-            if (member->IsAlive())
-            {
-                for (Unit::AttackerSet::const_iterator attackerIT = member->GetAttackers().begin(); attackerIT != member->GetAttackers().end(); ++attackerIT)
-                {
-                    if (Unit* eachAttacker = *attackerIT)
-                    {
-                        if (eachAttacker->IsAlive())
-                        {
-                            if (groupAttackersMap.find(eachAttacker->GetGUID()) == groupAttackersMap.end())
-                            {
-                                groupAttackersMap[eachAttacker->GetGUID()] = eachAttacker;
-                            }
-                        }
-                    }
-                }
-                if (Pet* memberPet = member->GetPet())
-                {
-                    if (memberPet->IsAlive())
-                    {
-                        for (Unit::AttackerSet::const_iterator attackerIT = memberPet->GetAttackers().begin(); attackerIT != memberPet->GetAttackers().end(); ++attackerIT)
-                        {
-                            if (Unit* eachAttacker = *attackerIT)
-                            {
-                                if (eachAttacker->IsAlive())
-                                {
-                                    if (groupAttackersMap.find(eachAttacker->GetGUID()) == groupAttackersMap.end())
-                                    {
-                                        groupAttackersMap[eachAttacker->GetGUID()] = eachAttacker;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-std::unordered_map<ObjectGuid, Unit*> Group::GetGroupAttackers(uint32 pmCreatureEntry)
-{
-    std::unordered_map<ObjectGuid, Unit*> resultMap;
-    resultMap.clear();
-    for (std::unordered_map<ObjectGuid, Unit*>::iterator aIT = groupAttackersMap.begin(); aIT != groupAttackersMap.end(); aIT++)
-    {
-        if (Unit* eachA = aIT->second)
-        {
-            if (eachA->GetEntry() == pmCreatureEntry)
-            {
-                resultMap[eachA->GetGUID()] = eachA;
-            }
-        }
-    }
-    return resultMap;
-}
-
-Unit* Group::GetGroupAttacker(uint32 pmCreatureEntry)
-{
-    for (std::unordered_map<ObjectGuid, Unit*>::iterator aIT = groupAttackersMap.begin(); aIT != groupAttackersMap.end(); aIT++)
-    {
-        if (Unit* eachA = aIT->second)
-        {
-            if (eachA->GetEntry() == pmCreatureEntry)
-            {
-                return eachA;
-            }
-        }
-    }
-    return NULL;
 }

@@ -47,9 +47,6 @@
 #include "Chat.h"
 #include "MasterPlayer.h"
 
- // lfm ninger 
-//#include "RobotManager.h"
-
 // select opcodes appropriate for processing in Map::Update context for current session state
 static bool MapSessionFilterHelper(WorldSession* session, OpcodeHandler const& opHandle)
 {
@@ -91,8 +88,8 @@ WorldSession::WorldSession(uint32 id, WorldSocket* sock, AccountTypes sec, time_
 	else
 		m_Address = "<BOT>";
 
-	// lfm robot
-	isRobotSession = false;
+	// lfm ninger
+	isNingerSession = false;
 }
 
 /// WorldSession destructor
@@ -146,13 +143,13 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 		return;
 	}
 
-	// lfm robot    
-	//if (isRobotSession)
-	//{
-	//	WorldPacket eachCopy(*packet);
-	//	sRobotManager->HandlePacket(this, eachCopy);
-	//	return;
-	//}
+	// lfm ninger    
+	if (isNingerSession)
+	{
+		WorldPacket eachCopy(*packet);
+		sNingerManager->HandlePacket(this, eachCopy);
+		return;
+	}
 
 	if (!m_Socket)
 	{
@@ -303,8 +300,8 @@ bool WorldSession::ForcePlayerLogoutDelay()
 /// Update the WorldSession (triggered by World update)
 bool WorldSession::Update(PacketFilter& updater)
 {
-	// lfm robot    
-	if (isRobotSession)
+	// lfm ninger    
+	if (isNingerSession)
 	{
 		if (_player)
 		{

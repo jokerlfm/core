@@ -413,6 +413,32 @@ set (game_SRCS
 	
 	Ninger/NingerConfig.h
 	Ninger/NingerConfig.cpp
+	Ninger/NingerEntity.h
+	Ninger/NingerEntity.cpp
+	Ninger/NingerManager.h
+	Ninger/NingerManager.cpp
+	Ninger/Awareness/Awareness_Base.h
+	Ninger/Awareness/Awareness_Base.cpp
+	Ninger/Awareness/Scripts/Script_Base.h
+	Ninger/Awareness/Scripts/Script_Base.cpp
+	Ninger/Awareness/Scripts/Script_Druid.h
+	Ninger/Awareness/Scripts/Script_Druid.cpp
+	Ninger/Awareness/Scripts/Script_Hunter.h
+	Ninger/Awareness/Scripts/Script_Hunter.cpp
+	Ninger/Awareness/Scripts/Script_Mage.h
+	Ninger/Awareness/Scripts/Script_Mage.cpp
+	Ninger/Awareness/Scripts/Script_Paladin.h
+	Ninger/Awareness/Scripts/Script_Paladin.cpp
+	Ninger/Awareness/Scripts/Script_Priest.h
+	Ninger/Awareness/Scripts/Script_Priest.cpp
+	Ninger/Awareness/Scripts/Script_Rogue.h
+	Ninger/Awareness/Scripts/Script_Rogue.cpp
+	Ninger/Awareness/Scripts/Script_Shaman.h
+	Ninger/Awareness/Scripts/Script_Shaman.cpp
+	Ninger/Awareness/Scripts/Script_Warlock.h
+	Ninger/Awareness/Scripts/Script_Warlock.cpp
+	Ninger/Awareness/Scripts/Script_Warrior.h
+	Ninger/Awareness/Scripts/Script_Warrior.cpp
 )
 
 if((${CMAKE_VERSION} VERSION_LESS "3.16") OR USE_PCH_OLD)
@@ -491,6 +517,8 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/Transports
   ${CMAKE_CURRENT_SOURCE_DIR}/vmap
   ${CMAKE_CURRENT_SOURCE_DIR}/Ninger
+  ${CMAKE_CURRENT_SOURCE_DIR}/Ninger/Awareness
+  ${CMAKE_CURRENT_SOURCE_DIR}/Ninger/Awareness/Scripts
   ${CMAKE_SOURCE_DIR}/src/scripts
   ${CMAKE_SOURCE_DIR}/src/scripts/PrecompiledHeaders
   ${CMAKE_SOURCE_DIR}/dep/include/g3dlite
@@ -553,6 +581,14 @@ source_group("Anticheat"
 
 source_group("Ninger"
   REGULAR_EXPRESSION Ninger
+)
+
+source_group("Ninger/Awareness"
+  REGULAR_EXPRESSION Awareness
+)
+
+source_group("Ninger/Awareness/Scripts"
+  REGULAR_EXPRESSION Scripts
 )
 
 add_library(game STATIC

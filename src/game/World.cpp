@@ -1784,7 +1784,10 @@ void World::SetInitialWorldSettings()
     sLog.outString("SERVER STARTUP TIME: %i minutes %i seconds", uStartInterval / 60000, (uStartInterval % 60000) / 1000);
 
     // lfm ninger
-    sNingerConfig.StartNingerSystem();
+    if (sNingerConfig.StartNingerSystem())
+    {
+        sNingerManager->InitializeManager();
+    }
 }
 
 void World::DetectDBCLang()
@@ -1987,6 +1990,7 @@ void World::Update(uint32 diff)
         sTerrainMgr.Update(diff);
 
     // lfm ninger update
+    sNingerManager->UpdateNingerManager(diff);
 }
 
 /// Send a packet to all players (except self if mentioned)
@@ -2455,6 +2459,7 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
         return;
 
     // lfm logout ningers 
+    sNingerManager->LogoutNingers();
 
     m_ShutdownMask = options;
     m_ExitCode = exitcode;

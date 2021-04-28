@@ -1,8 +1,8 @@
 #include "NingerConfig.h"
 #include "Policies/SingletonImp.h"
 
-#ifndef ROBOT_CONFIG_FILE_NAME
-# define ROBOT_CONFIG_FILE_NAME  "robot.conf"
+#ifndef NINGER_CONFIG_FILE_NAME
+# define NINGER_CONFIG_FILE_NAME  "ninger.conf"
 #endif
 
 INSTANTIATE_SINGLETON_1(NingerConfig);
@@ -99,18 +99,18 @@ float NingerConfig::GetFloatDefault(char const* name, float def)
 
 bool NingerConfig::StartNingerSystem()
 {
-	SetSource(ROBOT_CONFIG_FILE_NAME);
+	SetSource(NINGER_CONFIG_FILE_NAME);
 	Reload();
 
 	Enable = GetIntDefault("Enable", 0);
-	AccountNamePrefix = GetStringDefault("AccountNamePrefix", "ROBOT");
+	AccountNamePrefix = GetStringDefault("AccountNamePrefix", "NINGER");
 	DPSDelay = GetIntDefault("DPSDelay", 2000);	
 	if (Enable == 0)
 	{
-		sLog.outBasic("Robot system is disabled.");
+		sLog.outBasic("Ninger system is disabled.");
 		return false;
 	}
-	sLog.outBasic("Robot system started.");
+	sLog.outBasic("Ninger system started.");
 	return true;
 }
 

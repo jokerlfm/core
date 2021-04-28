@@ -44,10 +44,6 @@
 #include "MasterPlayer.h"
 #include "PlayerBroadcaster.h"
 
- // lfm ninger 
-//#include "RobotAI.h"
-//#include "RobotManager.h"
-
 // config option SkipCinematics supported values
 enum CinematicsSkipMode
 {
@@ -480,7 +476,7 @@ void WorldSession::LoginPlayer(ObjectGuid loginPlayerGuid)
     CharacterDatabase.DelayQueryHolderUnsafe(&chrHandler, &CharacterHandler::HandlePlayerLoginCallback, holder);
 }
 
-void WorldSession::HandlePlayerLogin(LoginQueryHolder *holder)
+void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
 {
     // The following fixes a crash. Use case:
     // Session1 created, requests login, kicked.
@@ -753,7 +749,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder *holder)
     std::string IP_str = GetRemoteAddress();
 
     sLog.out(LOG_CHAR, "Account: %d (IP: %s) Login Character:[%s] (guid: %u)%s",
-             GetAccountId(), IP_str.c_str(), pCurrChar->GetName(), pCurrChar->GetGUIDLow(), alreadyOnline ? " Player was already online" : "");
+        GetAccountId(), IP_str.c_str(), pCurrChar->GetName(), pCurrChar->GetGUIDLow(), alreadyOnline ? " Player was already online" : "");
     sWorld.LogCharacter(pCurrChar, "Login");
     if (!alreadyOnline && !pCurrChar->IsStandingUp() && !pCurrChar->HasUnitState(UNIT_STAT_STUNNED))
         pCurrChar->SetStandState(UNIT_STAND_STATE_STAND);
@@ -783,20 +779,27 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder *holder)
 
     ALL_SESSION_SCRIPTS(this, OnLogin(pCurrChar));
 
-    // lfm robot
-    //pCurrChar->rai = new RobotAI(pCurrChar);
-    //if (isRobotSession)
-    //{        
-    //    std::ostringstream loginBroadCastStream;
-    //    loginBroadCastStream << pCurrChar->GetName() << " logged in";
-    //    sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, loginBroadCastStream.str().c_str());
-    //}
-    //else
-    //{
-    //    pCurrChar->rai->strategyMap[Strategy_Index::Strategy_Index_Solo]->sb->IdentifyCharacterSpells();
-    //    pCurrChar->rai->strategyMap[Strategy_Index::Strategy_Index_Solo]->sb->Reset();
-    //    pCurrChar->rai->strategyMap[Strategy_Index::Strategy_Index_Solo]->sb->characterType;
-    //}
+    // lfm ninger    
+    Awareness_Base* ab = new Awareness_Base(pCurrChar);
+    pCurrChar->awarenessMap[0] = ab;
+    pCurrChar->activeAwarenessIndex = 0;
+    if (isNingerSession)
+    {
+        std::ostringstream loginNoticeStream;
+        loginNoticeStream << pCurrChar->GetName() << " logged in";
+        sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, loginNoticeStream.str().c_str());
+    }
+    else
+    {
+        for (std::unordered_map<uint32, Awareness_Base*>::iterator aiIT = pCurrChar->awarenessMap.begin(); aiIT != pCurrChar->awarenessMap.end(); aiIT++)
+        {
+            if (Awareness_Base* eachAI = aiIT->second)
+            {
+                eachAI->sb->Initialize();
+                eachAI->Reset();
+            }
+        }
+    }
 }
 
 void WorldSession::HandleSetFactionAtWarOpcode(WorldPacket& recv_data)
@@ -967,7 +970,7 @@ void WorldSession::HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uin
     sWorld.InvalidatePlayerDataToAllClient(guid);
 }
 
-// lfm robot 
+// lfm ninger 
 void WorldSession::HandlePlayerLogin_Simple(ObjectGuid pmCharacterGUID)
 {
     if (PlayerLoading() || GetPlayer() != nullptr)

@@ -277,8 +277,8 @@ class WorldSession
         WorldSession(uint32 id, WorldSocket *sock, AccountTypes sec, time_t mute_time, LocaleConstant locale);
         ~WorldSession();
 
-        // lfm robot
-        bool isRobotSession;
+        // lfm ninger
+        bool isNingerSession;
         void HandlePlayerLogin_Simple(ObjectGuid pmCharacterGUID);
 
         bool PlayerLoading() const { return m_playerLoading; }

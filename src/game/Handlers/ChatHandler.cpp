@@ -41,9 +41,6 @@
 #include "Anticheat.h"
 #include "AccountMgr.h"
 
- // lfm ninger 
-//#include "RobotManager.h"
-
 bool WorldSession::ProcessChatMessageAfterSecurityCheck(std::string& msg, uint32 lang, uint32 msgType)
 {
     if (!IsLanguageAllowedForChatType(lang, msgType))
@@ -381,10 +378,10 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             }
 
             // lfm ninger 
-            //if (!GetPlayer()->GetSession()->isRobotSession)
-            //{
-            //    sRobotManager->HandlePlayerSay(GetPlayer(), msg);
-            //}
+            if (!GetPlayer()->GetSession()->isNingerSession)
+            {
+                sNingerManager->HandlePlayerSay(GetPlayer(), msg);
+            }
 
             break;
         case CHAT_MSG_EMOTE:
@@ -499,7 +496,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                 }
 
                 // lfm ninger 
-                //sRobotManager->HandleChatCommand(GetPlayer(), msg, toPlayer);
+                sNingerManager->HandleChatCommand(GetPlayer(), msg, toPlayer);
             }
         }
         break;
@@ -526,7 +523,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                 sWorld.LogChat(this, "Group", msg, nullptr, group->GetId());
 
             // lfm ninger 
-            //sRobotManager->HandleChatCommand(GetPlayer(), msg);
+            sNingerManager->HandleChatCommand(GetPlayer(), msg);
         }
         break;
         case CHAT_MSG_GUILD: // Master side
@@ -591,7 +588,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                 sWorld.LogChat(this, "Raid", msg, nullptr, group->GetId());
 
             // lfm ninger 
-            //sRobotManager->HandleChatCommand(GetPlayer(), msg);
+            sNingerManager->HandleChatCommand(GetPlayer(), msg);
         }
         break;
 

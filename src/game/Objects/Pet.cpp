@@ -757,10 +757,10 @@ void Pet::RegenerateAll(uint32 update_diff, bool skipCombatCheck)
 
     if (m_happinessTimer <= update_diff)
     {
-        // lfm robot's pet will not lose happiness                
+        // lfm ninger's pet will not lose happiness                
         if (Player* ownerPlayer = GetCharmerOrOwnerPlayerOrPlayerItself())
         {
-            if (!ownerPlayer->GetSession()->isRobotSession)
+            if (!ownerPlayer->GetSession()->isNingerSession)
             {
                 LooseHappiness();
             }

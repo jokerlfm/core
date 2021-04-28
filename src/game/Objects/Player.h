@@ -40,6 +40,9 @@
 #include <vector>
 #include <functional>
 
+// lfm ninger 
+#include "Ninger/Awareness/Awareness_Base.h"
+
 struct Mail;
 struct ItemPrototype;
 class Group;
@@ -56,9 +59,6 @@ class ZoneScript;
 class PlayerAI;
 class PlayerBroadcaster;
 class MapReference;
-
-// lfm robot 
-class RobotAI;
 
 #define PLAYER_MAX_SKILLS           127
 #define PLAYER_EXPLORED_ZONES_SIZE  64
@@ -862,8 +862,9 @@ class Player final: public Unit
         explicit Player (WorldSession* session);
         ~Player() override;
 
-        // lfm robot
-        RobotAI* rai;
+        // lfm ninger
+        std::unordered_map<uint32, Awareness_Base*> awarenessMap;
+        uint32 activeAwarenessIndex;
         uint32 GetMaxTalentCountTab();
         uint32 GetTalentCount(int pmTab);
         // 0 dps, 1 tank, 2 healer
@@ -1455,7 +1456,7 @@ class Player final: public Unit
         virtual void AddGCD(SpellEntry const& spellEntry, uint32 forcedDuration = 0, bool updateClient = false) override;
         virtual void AddCooldown(SpellEntry const& spellEntry, ItemPrototype const* itemProto = nullptr, bool permanent = false, uint32 forcedDuration = 0) override;
 
-        // lfm robot spell cooldown 
+        // lfm ninger spell cooldown 
         bool HasSpellCooldown(uint32 pmSpellID);
 
         virtual void RemoveSpellCooldown(SpellEntry const& spellEntry, bool updateClient = true) override;
@@ -1904,7 +1905,7 @@ class Player final: public Unit
         uint32 GetHomeBindMap() const { return m_homebindMapId; }
         uint16 GetHomeBindAreaId() const { return m_homebindAreaId; }
 
-        // lfm robot 
+        // lfm ninger 
         float GetHomeBindX() const { return m_homebindX; }
         float GetHomeBindY() const { return m_homebindY; }
         float GetHomeBindZ() const { return m_homebindZ; }

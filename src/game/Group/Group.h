@@ -213,15 +213,6 @@ class Group
         // lfm group target arrangement
         std::unordered_map<ObjectGuid, ObjectGuid> groupTargetArrangementMap;
 
-        // lfm group strategy index
-        uint32 groupStrategyIndex;
-
-        // lfm group attackers
-        void UpdateGroupAttackers();
-        std::unordered_map<ObjectGuid, Unit*> groupAttackersMap;
-        std::unordered_map<ObjectGuid, Unit*> GetGroupAttackers(uint32 pmCreatureEntry);
-        Unit* GetGroupAttacker(uint32 pmCreatureEntry);
-
         // group manipulation methods
         bool   Create(ObjectGuid guid, char const*  name);
         bool   LoadGroupFromDB(Field* fields);
