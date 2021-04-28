@@ -1,5 +1,5 @@
-#ifndef ROBOT_CONFIG_H
-#define ROBOT_CONFIG_H
+#ifndef NINGER_CONFIG_H
+#define NINGER_CONFIG_H
 
 #include "Common.h"
 #include <ace/Recursive_Thread_Mutex.h>
@@ -9,13 +9,13 @@
 
 class ACE_Configuration_Heap;
 
-class RobotConfig
+class NingerConfig
 {
-	friend class ACE_Singleton<RobotConfig, ACE_Recursive_Thread_Mutex>;
+	friend class ACE_Singleton<NingerConfig, ACE_Recursive_Thread_Mutex>;
 public:
 
-	RobotConfig();
-	~RobotConfig();
+	NingerConfig();
+	~NingerConfig();
 
 	bool SetSource(char const* file);
 	bool Reload();
@@ -41,7 +41,7 @@ private:
 
 public:
 
-	bool StartRobotSystem();
+	bool StartNingerSystem();
 	uint32 Enable;
 	std::string AccountNamePrefix;
 	uint32 DPSDelay;
@@ -50,6 +50,6 @@ public:
 	std::string TrimString(std::string srcStr);
 };
 
-#define sRobotConfig (*ACE_Singleton<RobotConfig, ACE_Recursive_Thread_Mutex>::instance())
+#define sNingerConfig (*ACE_Singleton<NingerConfig, ACE_Recursive_Thread_Mutex>::instance())
 
 #endif

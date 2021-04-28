@@ -35,7 +35,7 @@ class RandomMovementGenerator
             if (wander_distance > 0.0f)
                 i_wanderDistance = wander_distance;
 
-            // EJ wait delay 
+            // lfm wait delay 
             waitDelay = 0;
         }
 
@@ -64,7 +64,7 @@ class RandomMovementGenerator
         uint32 i_expireTime;
         uint8 i_wanderSteps;
 
-        // EJ wait 
+        // lfm wait 
 public:
         int32 waitDelay;
 };

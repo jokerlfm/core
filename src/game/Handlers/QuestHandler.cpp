@@ -33,7 +33,7 @@
 #include "ScriptMgr.h"
 #include "Group.h"
 
-// EJ movement wait 
+// lfm movement wait 
 #include "RandomMovementGenerator.h"
 
 void WorldSession::HandleQuestgiverStatusQueryOpcode(WorldPacket& recv_data)
@@ -104,15 +104,16 @@ void WorldSession::HandleQuestgiverHelloOpcode(WorldPacket& recv_data)
 
     // Stop the npc if moving
     if (!pCreature->HasExtraFlag(CREATURE_FLAG_EXTRA_NO_MOVEMENT_PAUSE))
+    {
         pCreature->PauseOutOfCombatMovement();
-        // EJ gossip will wait for a while 
-        if (MotionMaster* mm = pCreature->GetMotionMaster())
-        {
-            if (RandomMovementGenerator* rmg = (RandomMovementGenerator*)mm->top())
-            {
-                rmg->waitDelay = 30000;
-            }
-        }
+        // lfm gossip will wait for a while 
+        //if (MotionMaster* mm = pCreature->GetMotionMaster())
+        //{
+        //    if (RandomMovementGenerator* rmg = (RandomMovementGenerator*)mm->top())
+        //    {
+        //        rmg->waitDelay = 30000;
+        //    }
+        //}
     }
     if (sScriptMgr.OnGossipHello(_player, pCreature))
         return;

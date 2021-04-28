@@ -57,7 +57,7 @@ class PlayerAI;
 class PlayerBroadcaster;
 class MapReference;
 
-// EJ robot 
+// lfm robot 
 class RobotAI;
 
 #define PLAYER_MAX_SKILLS           127
@@ -862,13 +862,13 @@ class Player final: public Unit
         explicit Player (WorldSession* session);
         ~Player() override;
 
-        // EJ robot
+        // lfm robot
         RobotAI* rai;
         uint32 GetMaxTalentCountTab();
         uint32 GetTalentCount(int pmTab);
         // 0 dps, 1 tank, 2 healer
         uint32 groupRole;        
-        // EJ auto fish
+        // lfm auto fish
         bool fishing;        
 
         void CleanupsBeforeDelete() override;
@@ -1455,7 +1455,7 @@ class Player final: public Unit
         virtual void AddGCD(SpellEntry const& spellEntry, uint32 forcedDuration = 0, bool updateClient = false) override;
         virtual void AddCooldown(SpellEntry const& spellEntry, ItemPrototype const* itemProto = nullptr, bool permanent = false, uint32 forcedDuration = 0) override;
 
-        // EJ robot spell cooldown 
+        // lfm robot spell cooldown 
         bool HasSpellCooldown(uint32 pmSpellID);
 
         virtual void RemoveSpellCooldown(SpellEntry const& spellEntry, bool updateClient = true) override;
@@ -1904,7 +1904,7 @@ class Player final: public Unit
         uint32 GetHomeBindMap() const { return m_homebindMapId; }
         uint16 GetHomeBindAreaId() const { return m_homebindAreaId; }
 
-        // EJ robot 
+        // lfm robot 
         float GetHomeBindX() const { return m_homebindX; }
         float GetHomeBindY() const { return m_homebindY; }
         float GetHomeBindZ() const { return m_homebindZ; }

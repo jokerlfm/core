@@ -1646,7 +1646,7 @@ struct Position
     float z = 0.0f;
     float o = 0.0f;
 
-    // EJ position angle calculate
+    // lfm position angle calculate
     float GetAngle(Position pmTargetPosition)
     {
         float dx = pmTargetPosition.x - x;

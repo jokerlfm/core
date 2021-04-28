@@ -757,7 +757,7 @@ void Pet::RegenerateAll(uint32 update_diff, bool skipCombatCheck)
 
     if (m_happinessTimer <= update_diff)
     {
-        // EJ robot's pet will not lose happiness                
+        // lfm robot's pet will not lose happiness                
         if (Player* ownerPlayer = GetCharmerOrOwnerPlayerOrPlayerItself())
         {
             if (!ownerPlayer->GetSession()->isRobotSession)
@@ -1314,7 +1314,7 @@ bool Pet::CreateBaseAtCreature(Creature* creature)
     else
         SetName(creature->GetNameForLocaleIdx(sObjectMgr.GetDBCLocaleIndex()));
 
-    // EJ pet name
+    // lfm pet name
     SetName(cinfo->name);
 
     m_loyaltyPoints = 1000;
@@ -1338,7 +1338,7 @@ bool Pet::CreateBaseAtCreature(Creature* creature)
     return true;
 }
 
-// EJ create pet base from info 
+// lfm create pet base from info 
 bool Pet::CreateBaseAtCreatureInfo(const CreatureInfo* pmCI, Map* pmCreatePositionMap, float pmCreatePositionX, float pmCreatePositionY, float pmCreatePositionZ, float pmCreatePositionOrientation)
 {
     if (!pmCI)

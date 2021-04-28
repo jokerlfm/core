@@ -40,8 +40,8 @@
 
 #include <array>
 
-// EJ robot 
-#include "RobotAI.h"
+// lfm ninger 
+//#include "RobotAI.h"
 
 GroupMemberStatus GetGroupMemberStatus(Player const* member = nullptr)
 {
@@ -85,8 +85,8 @@ Group::Group() : m_Id(0), m_leaderLastOnline(0), m_groupType(GROUPTYPE_NORMAL),
                  m_bgGroup(nullptr), m_lootMethod(FREE_FOR_ALL), m_lootThreshold(ITEM_QUALITY_UNCOMMON),
                  m_subGroupsCounts(nullptr), m_groupTeam(TEAM_NONE), m_LFGAreaId(0)
 {
-    // EJ group strategy index
-    groupStrategyIndex = Strategy_Index::Strategy_Index_Group;
+    // lfm group strategy index
+    //groupStrategyIndex = Strategy_Index::Strategy_Index_Group;
 }
 
 Group::~Group()
@@ -136,7 +136,7 @@ bool Group::Create(ObjectGuid guid, char const*  name)
     m_lootThreshold = ITEM_QUALITY_UNCOMMON;
     m_looterGuid = guid;
 
-    // EJ free loot
+    // lfm free loot
     m_lootMethod = FREE_FOR_ALL;
 
     if (!isBGGroup())
@@ -2354,7 +2354,7 @@ void Group::UpdateLooterGuid(WorldObject* pLootedObject, bool ifneed)
     }
 }
 
-// EJ rti
+// lfm rti
 ObjectGuid Group::GetOGByTargetIcon(int pmID)
 {
     if (pmID >= 0 && pmID < TARGET_ICON_COUNT)
@@ -2376,7 +2376,7 @@ int Group::GetTargetIconByOG(ObjectGuid pmOG)
     return -1;
 }
 
-// EJ group attackers
+// lfm group attackers
 void Group::UpdateGroupAttackers()
 {
     groupAttackersMap.clear();

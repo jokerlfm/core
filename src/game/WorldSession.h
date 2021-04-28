@@ -277,7 +277,7 @@ class WorldSession
         WorldSession(uint32 id, WorldSocket *sock, AccountTypes sec, time_t mute_time, LocaleConstant locale);
         ~WorldSession();
 
-        // EJ robot
+        // lfm robot
         bool isRobotSession;
         void HandlePlayerLogin_Simple(ObjectGuid pmCharacterGUID);
 

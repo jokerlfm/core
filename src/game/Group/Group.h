@@ -206,17 +206,17 @@ class Group
         Group();
         ~Group();
 
-        // EJ TargetIcon        
+        // lfm TargetIcon        
         ObjectGuid GetOGByTargetIcon(int pmID);
         int GetTargetIconByOG(ObjectGuid pmOG);
 
-        // EJ group target arrangement
+        // lfm group target arrangement
         std::unordered_map<ObjectGuid, ObjectGuid> groupTargetArrangementMap;
 
-        // EJ group strategy index
+        // lfm group strategy index
         uint32 groupStrategyIndex;
 
-        // EJ group attackers
+        // lfm group attackers
         void UpdateGroupAttackers();
         std::unordered_map<ObjectGuid, Unit*> groupAttackersMap;
         std::unordered_map<ObjectGuid, Unit*> GetGroupAttackers(uint32 pmCreatureEntry);

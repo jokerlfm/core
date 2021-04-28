@@ -126,7 +126,7 @@ void TargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
     if (!m_bReachable && !!(pathType & PATHFIND_INCOMPLETE) && owner.HasUnitState(UNIT_STAT_ALLOW_INCOMPLETE_PATH))
         m_bReachable = true;
 
-    // EJ CanReachWithMeleeAutoAttackAtPosition is no longer in use since chase is using for range following 
+    // lfm CanReachWithMeleeAutoAttackAtPosition is no longer in use since chase is using for range following 
     // Enforce stricter checking inside dungeons
     //if (m_bReachable && owner.GetMap() && owner.GetMap()->IsDungeon())
     //{
@@ -316,7 +316,7 @@ bool ChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
             else
             {
                 float allowed_dist = owner.GetMaxChaseDistance(i_target.getTarget()) - 0.5f;
-                // EJ allowed dist can be ranged 
+                // lfm allowed dist can be ranged 
                 if (allowed_dist < m_fOffset)
                 {
                     allowed_dist = m_fOffset;
@@ -374,7 +374,7 @@ bool ChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
             if (!owner.HasInArc(i_target.getTarget(), 0.01f))
             {
                 owner.SetInFront(i_target.getTarget());
-                // EJ add set facing to 
+                // lfm add set facing to 
                 owner.SetFacingTo(owner.GetAngle(i_target.getTarget()));
             }
         }
@@ -521,7 +521,7 @@ void ChaseMovementGenerator<T>::DoSpreadIfNeeded(T &owner, Unit* target)
 template<class T>
 void ChaseMovementGenerator<T>::_reachTarget(T &owner)
 {
-    // EJ chase will not auto attack 
+    // lfm chase will not auto attack 
     //if (owner.CanReachWithMeleeAutoAttack(this->i_target.getTarget()))
     //{
     //    owner.Attack(this->i_target.getTarget(), true);
@@ -681,7 +681,7 @@ bool FollowMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
         if (m_fAngle == 0.f && !owner.HasInArc(i_target.getTarget(), 0.01f))
         {
             owner.SetInFront(i_target.getTarget());
-            // EJ add set facing to 
+            // lfm add set facing to 
             owner.SetFacingTo(owner.GetAngle(i_target.getTarget()));
         }
 

@@ -360,7 +360,7 @@ void GameObject::Update(uint32 update_diff, uint32 /*p_time*/)
         // NO BREAK for switch (m_lootState)
         case GO_READY:
         {
-            // EJ auto fish
+            // lfm auto fish
             if (GetGoType() == GAMEOBJECT_TYPE_FISHINGNODE)
             {
                 Unit* caster = GetOwner();
@@ -1718,7 +1718,7 @@ void GameObject::Use(Unit* user)
                 }
             }
 
-            // EJ auto fish
+            // lfm auto fish
             player->fishing = true;
             player->AutoStoreLoot(loot);
             //player->SendLootRelease(player->GetObjectGuid());

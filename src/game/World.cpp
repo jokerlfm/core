@@ -83,12 +83,8 @@
 
 #include <chrono>
 
-// EJ robot
-#include "RobotConfig.h"
-#include "RobotManager.h"
-// EJ marketer
-#include "MarketerConfig.h"
-#include "MarketerManager.h"
+// lfm ninger
+#include "NingerConfig.h"
 
 INSTANTIATE_SINGLETON_1(World);
 
@@ -1784,13 +1780,8 @@ void World::SetInitialWorldSettings()
     uint32 uStartInterval = WorldTimer::getMSTimeDiff(uStartTime, WorldTimer::getMSTime());
     sLog.outString("SERVER STARTUP TIME: %i minutes %i seconds", uStartInterval / 60000, (uStartInterval % 60000) / 1000);
 
-    // EJ marketer
-    sMarketerConfig.StartMarketerSystem();
-    sMarketerManager->ResetMarketer();
-
-    // EJ robot
-    sRobotConfig.StartRobotSystem();
-    sRobotManager->InitializeManager();
+    // lfm ninger
+    sNingerConfig.StartNingerSystem();
 }
 
 void World::DetectDBCLang()
@@ -1992,11 +1983,7 @@ void World::Update(uint32 diff)
     if (getConfig(CONFIG_BOOL_CLEANUP_TERRAIN))
         sTerrainMgr.Update(diff);
 
-    // EJ marketer
-    sMarketerManager->UpdateMarketer(diff);
-
-    // EJ robot
-    sRobotManager->UpdateRobotManager(diff);
+    // lfm ninger update
 }
 
 /// Send a packet to all players (except self if mentioned)
@@ -2464,8 +2451,7 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     if (m_stopEvent)
         return;
 
-    // EJ robot
-    sRobotManager->LogoutRobots();
+    // lfm logout ningers 
 
     m_ShutdownMask = options;
     m_ExitCode = exitcode;

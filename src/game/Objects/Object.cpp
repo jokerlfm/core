@@ -5209,56 +5209,6 @@ void WorldObject::RemoveAllDynObjects()
     }
 }
 
-// EJ robot cast spell 
-SpellCastResult WorldObject::CastSpell_M(Unit* pTarget, SpellEntry const* spellInfo, bool triggered, Item* targetItem, Item* castItem, Aura* triggeredByAura, ObjectGuid originalCaster, SpellEntry const* triggeredBy, SpellEntry const* triggeredByParent)
-{
-    if (!spellInfo)
-    {
-        if (triggeredByAura)
-            sLog.outError("CastSpell: unknown spell by caster: %s triggered by aura %u (eff %u)", GetGuidStr().c_str(), triggeredByAura->GetId(), triggeredByAura->GetEffIndex());
-        else
-            sLog.outError("CastSpell: unknown spell by caster: %s", GetGuidStr().c_str());
-        return SPELL_FAILED_SPELL_UNAVAILABLE;
-    }
-
-    if (castItem)
-        DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "WORLD: cast Item spellId - %i", spellInfo->Id);
-
-    if (triggeredByAura)
-    {
-        if (!originalCaster)
-            originalCaster = triggeredByAura->GetCasterGuid();
-
-        triggeredBy = triggeredByAura->GetSpellProto();
-    }
-
-    Spell* spell;
-
-    if (Unit* pUnit = ToUnit())
-        spell = new Spell(pUnit, spellInfo, triggered, originalCaster, triggeredBy, nullptr, triggeredByParent);
-    else if (GameObject* pGameObject = ToGameObject())
-        spell = new Spell(pGameObject, spellInfo, triggered, originalCaster, triggeredBy, nullptr, triggeredByParent);
-    else
-        return SPELL_FAILED_ERROR;
-
-    SpellCastTargets targets;
-
-    // Don't set unit target on destination target based spells, otherwise the spell will cancel
-    // as soon as the target dies or leaves the area of the effect
-    if (spellInfo->Targets & TARGET_FLAG_DEST_LOCATION)
-        targets.setDestination(pTarget->GetPositionX(), pTarget->GetPositionY(), pTarget->GetPositionZ());
-    else
-        targets.setUnitTarget(pTarget);
-
-    if (spellInfo->Targets & TARGET_FLAG_SOURCE_LOCATION)
-        if (WorldObject* caster = spell->GetCastingObject())
-            targets.setSource(caster->GetPositionX(), caster->GetPositionY(), caster->GetPositionZ());
-
-    spell->SetCastItem(castItem);
-    targets.setItemTarget(targetItem);
-    return spell->prepare(std::move(targets), triggeredByAura);
-}
-
 SpellCastResult WorldObject::CastSpell(Unit* pTarget, uint32 spellId, bool triggered, Item* castItem, Aura* triggeredByAura, ObjectGuid originalCaster, SpellEntry const* triggeredBy, SpellEntry const* triggeredByParent)
 {
     SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spellId);

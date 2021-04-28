@@ -41,8 +41,8 @@
 #include "Anticheat.h"
 #include "AccountMgr.h"
 
- // EJ robot
-#include "RobotManager.h"
+ // lfm ninger 
+//#include "RobotManager.h"
 
 bool WorldSession::ProcessChatMessageAfterSecurityCheck(std::string& msg, uint32 lang, uint32 msgType)
 {
@@ -380,11 +380,11 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                     a->addMessage(msg, type, GetPlayerPointer(), nullptr);
             }
 
-            // EJ robot
-            if (!GetPlayer()->GetSession()->isRobotSession)
-            {
-                sRobotManager->HandlePlayerSay(GetPlayer(), msg);
-            }
+            // lfm ninger 
+            //if (!GetPlayer()->GetSession()->isRobotSession)
+            //{
+            //    sRobotManager->HandlePlayerSay(GetPlayer(), msg);
+            //}
 
             break;
         case CHAT_MSG_EMOTE:
@@ -498,8 +498,8 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                             a->addMessage(msg, type, GetPlayerPointer(), PlayerPointer(new PlayerWrapper<MasterPlayer>(player)));
                 }
 
-                // EJ robot
-                sRobotManager->HandleChatCommand(GetPlayer(), msg, toPlayer);
+                // lfm ninger 
+                //sRobotManager->HandleChatCommand(GetPlayer(), msg, toPlayer);
             }
         }
         break;
@@ -525,8 +525,8 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             if (lang != LANG_ADDON)
                 sWorld.LogChat(this, "Group", msg, nullptr, group->GetId());
 
-            // EJ robot
-            sRobotManager->HandleChatCommand(GetPlayer(), msg);
+            // lfm ninger 
+            //sRobotManager->HandleChatCommand(GetPlayer(), msg);
         }
         break;
         case CHAT_MSG_GUILD: // Master side
@@ -590,8 +590,8 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             if (lang != LANG_ADDON)
                 sWorld.LogChat(this, "Raid", msg, nullptr, group->GetId());
 
-            // EJ robot
-            sRobotManager->HandleChatCommand(GetPlayer(), msg);
+            // lfm ninger 
+            //sRobotManager->HandleChatCommand(GetPlayer(), msg);
         }
         break;
 

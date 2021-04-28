@@ -47,8 +47,8 @@
 #include "Chat.h"
 #include "MasterPlayer.h"
 
- // EJ robot
-#include "RobotManager.h"
+ // lfm ninger 
+//#include "RobotManager.h"
 
 // select opcodes appropriate for processing in Map::Update context for current session state
 static bool MapSessionFilterHelper(WorldSession* session, OpcodeHandler const& opHandle)
@@ -91,7 +91,7 @@ WorldSession::WorldSession(uint32 id, WorldSocket* sock, AccountTypes sec, time_
 	else
 		m_Address = "<BOT>";
 
-	// EJ robot
+	// lfm robot
 	isRobotSession = false;
 }
 
@@ -146,13 +146,13 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 		return;
 	}
 
-	// EJ robot    
-	if (isRobotSession)
-	{
-		WorldPacket eachCopy(*packet);
-		sRobotManager->HandlePacket(this, eachCopy);
-		return;
-	}
+	// lfm robot    
+	//if (isRobotSession)
+	//{
+	//	WorldPacket eachCopy(*packet);
+	//	sRobotManager->HandlePacket(this, eachCopy);
+	//	return;
+	//}
 
 	if (!m_Socket)
 	{
@@ -303,7 +303,7 @@ bool WorldSession::ForcePlayerLogoutDelay()
 /// Update the WorldSession (triggered by World update)
 bool WorldSession::Update(PacketFilter& updater)
 {
-	// EJ robot    
+	// lfm robot    
 	if (isRobotSession)
 	{
 		if (_player)
@@ -744,7 +744,7 @@ void WorldSession::LogoutPlayer(bool Save)
 		///- Leave all channels before player delete...
 		_player->CleanupChannels();
 
-		// EJ group - player should not be uninvited when logging off 
+		// lfm group - player should not be uninvited when logging off 
 		if (_player->GetGroupInvite())
 		{
 			///- If the player is in a group (or invited), remove him. If the group if then only 1 person, disband the group.

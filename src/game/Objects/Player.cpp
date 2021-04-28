@@ -79,8 +79,8 @@
 #include "world/world_event_naxxramas.h"
 #include "world/world_event_wareffort.h"
 
-// EJ robot 
-#include "RobotAI.h"
+ // lfm ninger 
+//#include "RobotAI.h"
 
 #define ZONE_UPDATE_INTERVAL (1*IN_MILLISECONDS)
 
@@ -600,10 +600,10 @@ Player::Player(WorldSession* session) : Unit(),
     m_longSightSpell = 0;
     m_longSightRange = 0.0f;
 
-    // EJ robot
+    // lfm robot
     groupRole = 0;    
     rai = NULL;
-    // EJ auto fish
+    // lfm auto fish
     fishing = false;
 }
 
@@ -1489,13 +1489,13 @@ void Player::Update(uint32 update_diff, uint32 p_time)
             GetSession()->ProcessAnticheatAction("MovementAnticheat", reason.str().c_str(), cheatAction, sWorld.getConfig(CONFIG_UINT32_AC_MOVEMENT_BAN_DURATION));
     }
 
-    // EJ robot    
-    if (rai)
-    {
-        rai->Update(p_time);
-    }
+    // lfm ninger 
+    //if (rai)
+    //{
+    //    rai->Update(p_time);
+    //}
 
-    // EJ auto fish
+    // lfm auto fish
     if (fishing)
     {
         CastSpell(this, 7620, true);
@@ -1506,7 +1506,7 @@ void Player::Update(uint32 update_diff, uint32 p_time)
     {
         if (myGroup->GetLeaderGuid() == GetObjectGuid())
         {
-            // EJ group updates
+            // lfm group updates
             myGroup->UpdateGroupAttackers();
         }
     }
@@ -20142,7 +20142,7 @@ void Player::AutoStoreLoot(Loot& loot, bool broadcast, uint8 bag, uint8 slot)
         Item* pItem = StoreNewItem(dest, lootItem->itemid, true, lootItem->randomPropertyId);
         SendNewItem(pItem, lootItem->count, false, false, broadcast);
 
-        // EJ update loot when auto store
+        // lfm update loot when auto store
         loot.NotifyItemRemoved(i);
         loot.unlootedCount--;
     }
@@ -21636,7 +21636,7 @@ void Player::CreatePacketBroadcaster()
     sWorld.GetBroadcaster()->RegisterPlayer(m_broadcaster);
 }
 
-// EJ robot 
+// lfm robot 
 uint32 Player::GetMaxTalentCountTab()
 {
     std::unordered_map<uint32, uint32> tabCountMap;

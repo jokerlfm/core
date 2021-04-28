@@ -1308,7 +1308,7 @@ namespace MaNGOS
             AllGameObjectsWithEntryInRange(WorldObject const* pObject, uint32 uiEntry, float fMaxRange) : m_pObject(pObject), m_uiEntry(uiEntry), m_fRange(fMaxRange) {}
             bool operator() (GameObject* pGo)
             {
-                // EJ gameobject search 0 is all 
+                // lfm gameobject search 0 is all 
                 bool matchResult = m_pObject->IsWithinDist(pGo, m_fRange, false);
                 if (matchResult)
                 {
@@ -1332,7 +1332,7 @@ namespace MaNGOS
         AllCreaturesOfEntryInRange(WorldObject const* pObject, uint32 uiEntry, float fMaxRange) : m_pObject(pObject), m_uiEntry(uiEntry), m_fRange(fMaxRange) {}
         bool operator() (Unit* pUnit)
         {
-            // EJ creature search 0 is all
+            // lfm creature search 0 is all
             //return pUnit->GetEntry() == m_uiEntry && m_pObject->IsWithinDist(pUnit, m_fRange, false);
             bool matchResult = m_pObject->IsWithinDist(pUnit, m_fRange, false);
             if (matchResult)

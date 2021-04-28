@@ -1,14 +1,14 @@
-#include "RobotConfig.h"
+#include "NingerConfig.h"
 #include "Policies/SingletonImp.h"
 
 #ifndef ROBOT_CONFIG_FILE_NAME
 # define ROBOT_CONFIG_FILE_NAME  "robot.conf"
 #endif
 
-INSTANTIATE_SINGLETON_1(RobotConfig);
+INSTANTIATE_SINGLETON_1(NingerConfig);
 
 // Defined here as it must not be exposed to end-users.
-bool RobotConfig::GetValueHelper(char const* name, ACE_TString& result)
+bool NingerConfig::GetValueHelper(char const* name, ACE_TString& result)
 {
 	GuardType guard(m_configLock);
 
@@ -31,24 +31,24 @@ bool RobotConfig::GetValueHelper(char const* name, ACE_TString& result)
 	return false;
 }
 
-RobotConfig::RobotConfig()
+NingerConfig::NingerConfig()
 	: mConf(nullptr)
 {
 }
 
-RobotConfig::~RobotConfig()
+NingerConfig::~NingerConfig()
 {
 	delete mConf;
 }
 
-bool RobotConfig::SetSource(char const* file)
+bool NingerConfig::SetSource(char const* file)
 {
 	mFilename = file;
 
 	return Reload();
 }
 
-bool RobotConfig::Reload()
+bool NingerConfig::Reload()
 {
 	delete mConf;
 	mConf = new ACE_Configuration_Heap;
@@ -65,13 +65,13 @@ bool RobotConfig::Reload()
 	return false;
 }
 
-std::string RobotConfig::GetStringDefault(char const* name, char const* def)
+std::string NingerConfig::GetStringDefault(char const* name, char const* def)
 {
 	ACE_TString val;
 	return GetValueHelper(name, val) ? val.c_str() : def;
 }
 
-bool RobotConfig::GetBoolDefault(char const* name, bool def)
+bool NingerConfig::GetBoolDefault(char const* name, bool def)
 {
 	ACE_TString val;
 	if (!GetValueHelper(name, val))
@@ -84,20 +84,20 @@ bool RobotConfig::GetBoolDefault(char const* name, bool def)
 }
 
 
-int32 RobotConfig::GetIntDefault(char const* name, int32 def)
+int32 NingerConfig::GetIntDefault(char const* name, int32 def)
 {
 	ACE_TString val;
 	return GetValueHelper(name, val) ? atoi(val.c_str()) : def;
 }
 
 
-float RobotConfig::GetFloatDefault(char const* name, float def)
+float NingerConfig::GetFloatDefault(char const* name, float def)
 {
 	ACE_TString val;
 	return GetValueHelper(name, val) ? (float)atof(val.c_str()) : def;
 }
 
-bool RobotConfig::StartRobotSystem()
+bool NingerConfig::StartNingerSystem()
 {
 	SetSource(ROBOT_CONFIG_FILE_NAME);
 	Reload();
@@ -114,7 +114,7 @@ bool RobotConfig::StartRobotSystem()
 	return true;
 }
 
-std::vector<std::string> RobotConfig::SplitString(std::string srcStr, std::string delimStr, bool repeatedCharIgnored)
+std::vector<std::string> NingerConfig::SplitString(std::string srcStr, std::string delimStr, bool repeatedCharIgnored)
 {
 	std::vector<std::string> resultStringVector;
 	std::replace_if(srcStr.begin(), srcStr.end(), [&](const char& c) {if (delimStr.find(c) != std::string::npos) { return true; } else { return false; }}/*pred*/, delimStr.at(0));
@@ -135,7 +135,7 @@ std::vector<std::string> RobotConfig::SplitString(std::string srcStr, std::strin
 	return resultStringVector;
 }
 
-std::string RobotConfig::TrimString(std::string srcStr)
+std::string NingerConfig::TrimString(std::string srcStr)
 {
 	std::string result = srcStr;
 	if (!result.empty())

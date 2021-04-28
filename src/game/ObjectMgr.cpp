@@ -1993,7 +1993,7 @@ void ObjectMgr::LoadCreatures(bool reload)
         }
         else if (data.movement_type == RANDOM_MOTION_TYPE)
         {
-            // EJ vendor will not move random 
+            // lfm vendor will not move random 
             if (const CreatureInfo* ci = sObjectMgr.GetCreatureTemplate(data.creature_id[0]))
             {
                 if (ci->npc_flags & NPCFlags::UNIT_NPC_FLAG_VENDOR)
