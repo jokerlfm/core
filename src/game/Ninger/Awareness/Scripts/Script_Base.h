@@ -47,7 +47,7 @@ public:
     virtual void Update(uint32 pmDiff);
     virtual bool DPS(Unit* pmTarget, bool pmChase, bool pmAOE, bool pmMark, float pmChaseDistanceMin, float pmChaseDistanceMax);
     virtual bool Tank(Unit* pmTarget, bool pmChase, bool pmAOE);
-    virtual bool Heal(Unit* pmTarget, bool pmMaxHealing = false);
+    virtual bool Heal(Unit* pmTarget);
     virtual bool Cure(Unit* pmTarget);
     virtual bool Buff(Unit* pmTarget);
     virtual bool Assist(Unit* pmTarget);
@@ -86,6 +86,7 @@ public:
     ObjectGuid ogReviveTarget;
 
     int buffDelay;
+    int healDelay;
     int cureDelay;
     int potionDelay;
 

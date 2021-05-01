@@ -21,12 +21,14 @@ Awareness_Base::Awareness_Base(Player* pmMe)
 {
 	me = pmMe;
 	groupRole = GroupRole::GroupRole_DPS;
-	engageTarget = NULL;
+	engageTarget = NULL;	
+	randomTeleportDelay = urand(10 * TimeConstants::IN_MILLISECONDS, 20 * TimeConstants::IN_MILLISECONDS);
 	reviveDelay = 0;
 	engageDelay = 0;
 	moveDelay = 0;
 	combatTime = 0;
 	teleportAssembleDelay = 0;
+	resurrectDelay = 0;
 	eatDelay = 0;
 	drinkDelay = 0;
 	readyCheckDelay = 0;
@@ -38,7 +40,7 @@ Awareness_Base::Awareness_Base(Player* pmMe)
 	mark = false;
 	petting = true;
 	dpsDelay = sNingerConfig.DPSDelay;
-	followDistance = FOLLOW_NORMAL_DISTANCE;
+	followDistance = FOLLOW_MIN_DISTANCE;
 	chaseDistanceMin = MELEE_MIN_DISTANCE;
 	chaseDistanceMax = MELEE_MAX_DISTANCE;
 	switch (me->GetClass())
@@ -50,29 +52,32 @@ Awareness_Base::Awareness_Base(Player* pmMe)
 	}
 	case Classes::CLASS_HUNTER:
 	{
-		chaseDistanceMax = FOLLOW_NORMAL_DISTANCE;
+		followDistance = FOLLOW_NORMAL_DISTANCE;
+		chaseDistanceMax = FOLLOW_FAR_DISTANCE;
 		sb = new Script_Hunter(me);
 		break;
 	}
 	case Classes::CLASS_SHAMAN:
 	{
+		followDistance = FOLLOW_NORMAL_DISTANCE;
 		sb = new Script_Shaman(me);
 		break;
 	}
 	case Classes::CLASS_PALADIN:
 	{
+		followDistance = FOLLOW_NORMAL_DISTANCE;
 		sb = new Script_Paladin(me);
 		break;
 	}
 	case Classes::CLASS_WARLOCK:
 	{
-		chaseDistanceMax = FOLLOW_NORMAL_DISTANCE;
+		followDistance = FOLLOW_NORMAL_DISTANCE;
 		sb = new Script_Warlock(me);
 		break;
 	}
 	case Classes::CLASS_PRIEST:
 	{
-		chaseDistanceMax = FOLLOW_NORMAL_DISTANCE;
+		followDistance = FOLLOW_NORMAL_DISTANCE;
 		sb = new Script_Priest(me);
 		break;
 	}
@@ -83,7 +88,7 @@ Awareness_Base::Awareness_Base(Player* pmMe)
 	}
 	case Classes::CLASS_MAGE:
 	{
-		chaseDistanceMax = FOLLOW_NORMAL_DISTANCE;
+		followDistance = FOLLOW_NORMAL_DISTANCE;
 		sb = new Script_Mage(me);
 		break;
 	}
@@ -116,6 +121,7 @@ void Awareness_Base::Report()
 
 void Awareness_Base::Reset()
 {
+	randomTeleportDelay = 0;
 	reviveDelay = 0;
 	engageDelay = 0;
 	combatTime = 0;
@@ -131,7 +137,7 @@ void Awareness_Base::Reset()
 	mark = false;
 	petting = true;
 	dpsDelay = sNingerConfig.DPSDelay;
-	followDistance = FOLLOW_NORMAL_DISTANCE;
+	followDistance = FOLLOW_MIN_DISTANCE;
 	chaseDistanceMin = MELEE_MIN_DISTANCE;
 	chaseDistanceMax = MELEE_MAX_DISTANCE;
 	sb->Reset();
@@ -139,53 +145,45 @@ void Awareness_Base::Reset()
 	{
 	case Classes::CLASS_WARRIOR:
 	{
-		followDistance = MELEE_MIN_DISTANCE;
 		break;
 	}
 	case Classes::CLASS_HUNTER:
 	{
-		chaseDistanceMax = FOLLOW_NORMAL_DISTANCE;
+		followDistance = FOLLOW_NORMAL_DISTANCE;
+		chaseDistanceMax = FOLLOW_FAR_DISTANCE;
 		break;
 	}
 	case Classes::CLASS_SHAMAN:
 	{
-		if (sb->maxTalentTab == 0 || sb->maxTalentTab == 1)
-		{
-			followDistance = MELEE_MIN_DISTANCE;
-		}
+		followDistance = FOLLOW_NORMAL_DISTANCE;
 		break;
 	}
 	case Classes::CLASS_PALADIN:
 	{
-		if (groupRole != GroupRole::GroupRole_Healer)
-		{
-			followDistance = MELEE_MIN_DISTANCE;
-		}
+		followDistance = FOLLOW_NORMAL_DISTANCE;
 		break;
 	}
 	case Classes::CLASS_WARLOCK:
 	{
-		chaseDistanceMax = FOLLOW_NORMAL_DISTANCE;
+		followDistance = FOLLOW_NORMAL_DISTANCE;
 		break;
 	}
 	case Classes::CLASS_PRIEST:
 	{
-		chaseDistanceMax = FOLLOW_NORMAL_DISTANCE;
+		followDistance = FOLLOW_NORMAL_DISTANCE;
 		break;
 	}
 	case Classes::CLASS_ROGUE:
 	{
-		followDistance = MELEE_MIN_DISTANCE;
 		break;
 	}
 	case Classes::CLASS_MAGE:
 	{
-		chaseDistanceMax = FOLLOW_NORMAL_DISTANCE;
+		followDistance = FOLLOW_NORMAL_DISTANCE;
 		break;
 	}
 	case Classes::CLASS_DRUID:
 	{
-		followDistance = MELEE_MIN_DISTANCE;
 		break;
 	}
 	default:
@@ -207,6 +205,14 @@ bool Awareness_Base::Chasing()
 void Awareness_Base::Update(uint32 pmDiff)
 {
 	if (!me)
+	{
+		return;
+	}
+	else if (!me->IsAlive())
+	{
+		return;
+	}
+	if (me->IsNonMeleeSpellCasted(false))
 	{
 		return;
 	}
@@ -255,8 +261,9 @@ void Awareness_Base::Update(uint32 pmDiff)
 				if (teleportAssembleDelay > 0)
 				{
 					teleportAssembleDelay -= pmDiff;
-					if (teleportAssembleDelay > 4000 && teleportAssembleDelay < 5000)
+					if (teleportAssembleDelay <= 0)
 					{
+						teleportAssembleDelay = 0;
 						Player* leaderPlayer = nullptr;
 						bool canTeleport = true;
 						for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
@@ -297,6 +304,7 @@ void Awareness_Base::Update(uint32 pmDiff)
 										}
 										else
 										{
+											resurrectDelay = urand(5000, 10000);
 											sNingerManager->WhisperTo(leaderPlayer, "I have come. I will revive in a few seconds", Language::LANG_UNIVERSAL, me);
 										}
 										me->GetThreatManager().clearReferences();
@@ -318,13 +326,16 @@ void Awareness_Base::Update(uint32 pmDiff)
 							{
 								sNingerManager->WhisperTo(leaderPlayer, "Can not find leader", Language::LANG_UNIVERSAL, me);
 							}
-							teleportAssembleDelay -= 1100;
 							return;
 						}
 					}
-					if (teleportAssembleDelay <= 0)
+				}
+				if (resurrectDelay > 0)
+				{
+					resurrectDelay -= pmDiff;
+					if (resurrectDelay < 0)
 					{
-						teleportAssembleDelay = 0;
+						resurrectDelay = 0;
 						if (!me->IsAlive())
 						{
 							me->ResurrectPlayer(0.2f);
@@ -356,10 +367,6 @@ void Awareness_Base::Update(uint32 pmDiff)
 					return;
 				}
 				if (staying)
-				{
-					return;
-				}
-				if (me->IsNonMeleeSpellCasted(false))
 				{
 					return;
 				}
@@ -561,15 +568,110 @@ void Awareness_Base::Update(uint32 pmDiff)
 						break;
 					}
 					}
-					Petting();
+					if (Petting())
+					{
+						return;
+					}
 				}
 				Follow();
 			}
 			else
 			{
-				if (me->IsNonMeleeSpellCasted(false))
+				if (me->IsInCombat())
 				{
-					return;
+					engageDelay = 0;
+					moveDelay = 0;
+					eatDelay = 0;
+					drinkDelay = 0;
+					combatTime += pmDiff;
+					if (Cure())
+					{
+						return;
+					}
+					if (Heal())
+					{
+						return;
+					}
+					if (DPS())
+					{
+						return;
+					}
+				}
+				else
+				{
+					combatTime = 0;
+					if (moveDelay > 0)
+					{
+						moveDelay -= pmDiff;
+						if (moveDelay < 0)
+						{
+							moveDelay = 0;
+						}
+						return;
+					}
+					if (engageDelay > 0)
+					{
+						engageDelay -= pmDiff;
+						if (engageDelay <= 0)
+						{
+							sb->rm->ResetMovement();
+							sb->ClearTarget();
+							return;
+						}
+						if (sb->DPS(engageTarget, Chasing(), aoe, mark, chaseDistanceMin, chaseDistanceMax))
+						{
+							return;
+						}
+						else
+						{
+							engageTarget = NULL;
+							engageDelay = 0;
+						}
+						return;
+					}
+					if (randomTeleportDelay >= 0)
+					{
+						randomTeleportDelay -= pmDiff;
+						if (randomTeleportDelay < 0)
+						{
+							randomTeleportDelay = urand(10 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS, 20 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS);
+							sNingerManager->RandomTeleport(me);
+							return;
+						}
+					}
+					if (eatDelay > 0)
+					{
+						eatDelay -= pmDiff;
+						if (drinkDelay > 0)
+						{
+							drinkDelay -= pmDiff;
+							if (drinkDelay <= 0)
+							{
+								sb->Drink();
+							}
+						}
+						return;
+					}
+					if (Rest())
+					{
+						return;
+					}
+					if (Buff())
+					{
+						return;
+					}
+					if (Cure())
+					{
+						return;
+					}
+					if (Petting())
+					{
+						return;
+					}
+					if (Wander())
+					{
+						return;
+					}
 				}
 			}
 		}
@@ -831,6 +933,53 @@ bool Awareness_Base::Follow()
 	}
 
 	return false;
+}
+
+bool Awareness_Base::Wander()
+{
+	uint32 wanderRate = urand(0, 100);
+	if (wanderRate < 25)
+	{
+		std::list<Unit*> targets;
+		// Maximum spell range=100m ?
+		MaNGOS::AnyUnitInObjectRangeCheck u_check(me, 100.0f);
+		MaNGOS::UnitListSearcher<MaNGOS::AnyUnitInObjectRangeCheck> searcher(targets, u_check);
+		// Don't need to use visibility modifier, units won't be able to cast outside of draw distance
+		Cell::VisitAllObjects(me, searcher, 100.0f);
+		for (std::list<Unit*>::iterator uIT = targets.begin(); uIT != targets.end(); uIT++)
+		{
+			if (Unit* eachUnit = *uIT)
+			{
+				if (eachUnit->GetTypeId() == TypeID::TYPEID_PLAYER)
+				{
+					if (me->IsValidAttackTarget(eachUnit))
+					{
+						if (sb->DPS(eachUnit, Chasing(), aoe, mark, chaseDistanceMin, chaseDistanceMax))
+						{
+							engageDelay = 20 * TimeConstants::IN_MILLISECONDS;
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+	else if (wanderRate < 50)
+	{
+		float angle = frand(0, 2 * M_PI_F);
+		float distance = frand(10.0f, 30.0f);
+		float destX = 0.0f, destY = 0.0f, destZ = 0.0f;
+		me->GetNearPoint(me, destX, destY, destZ, me->GetObjectBoundingRadius(), distance, angle);
+		me->GetMotionMaster()->MovePoint(0, destX, destY, destZ, MoveOptions::MOVE_PATHFINDING);
+		moveDelay = 20 * TimeConstants::IN_MILLISECONDS;
+	}
+	else
+	{
+		me->StopMoving();
+		me->GetMotionMaster()->Clear();
+		moveDelay = 20 * TimeConstants::IN_MILLISECONDS;
+	}
+	return true;
 }
 
 bool Awareness_Base::Stay(std::string pmTargetGroupRole)

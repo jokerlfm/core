@@ -18,6 +18,7 @@ enum PaladinBlessingType :uint32
     PaladinBlessingType_Kings = 0,
     PaladinBlessingType_Might = 1,
     PaladinBlessingType_Wisdom = 2,
+    PaladinBlessingType_Salvation = 3,
 };
 
 enum PaladinSealType :uint32
@@ -34,10 +35,13 @@ public:
 
     void Update(uint32 pmDiff);
     void Reset();
-    bool DPS(Unit* pmTarget, bool pmChase, bool pmAOE, bool pmMark, float pmChaseDistanceMin, float pmChaseDistanceMax);
     bool Cure(Unit* pmTarget);
     bool Buff(Unit* pmTarget);
     bool Revive(Player* pmTarget);
+    bool Heal(Unit* pmTarget);
+    bool Heal_Holy(Unit* pmTarget);
+    bool DPS(Unit* pmTarget, bool pmChase, bool pmAOE, bool pmMark, float pmChaseDistanceMin, float pmChaseDistanceMax);
+    bool DPS_Holy(Unit* pmTarget, bool pmChase, bool pmAOE, bool pmMark, float pmChaseDistanceMin, float pmChaseDistanceMax);
     bool DPS_Retribution(Unit* pmTarget, bool pmChase, bool pmAOE, bool pmMark, float pmChaseDistanceMin, float pmChaseDistanceMax);
 
     uint32 auraType;

@@ -8,9 +8,12 @@
 #include "Script_Warlock.h"
 #include "Chat.h"
 #include "SpellAuras.h"
+#include "MarketerManager.h"
 
 NingerManager::NingerManager()
 {
+	onlineCheckDelay = 0;
+	offlineCheckDelay = 0;
 	nameIndex = 0;
 	ningerEntityMap.clear();
 	deleteningerAccountSet.clear();
@@ -22,12 +25,10 @@ NingerManager::NingerManager()
 
 void NingerManager::InitializeManager()
 {
-	if (sNingerConfig.Enable == 0)
-	{
-		return;
-	}
-
 	sLog.outBasic("Initialize ninger manager");
+
+	onlineCheckDelay = sNingerConfig.OnlineCheckDelay;
+	offlineCheckDelay = sNingerConfig.OfflineCheckDelay;
 
 	QueryResult* ningerNamesQR = WorldDatabase.Query("SELECT name FROM ninger_names order by rand()");
 	if (!ningerNamesQR)
@@ -199,6 +200,101 @@ void NingerManager::UpdateNingerManager(uint32 pmDiff)
 		return;
 	}
 
+	if (onlineCheckDelay >= 0)
+	{
+		onlineCheckDelay -= pmDiff;
+	}
+	if (onlineCheckDelay < 0)
+	{
+		onlineCheckDelay = sNingerConfig.OnlineCheckDelay;
+		std::unordered_set<uint32> onlinePlayerLevelSet;
+		std::unordered_map<uint32, WorldSession*> allSessions = sWorld.GetAllSessions();
+		for (std::unordered_map<uint32, WorldSession*>::iterator wsIT = allSessions.begin(); wsIT != allSessions.end(); wsIT++)
+		{
+			if (WorldSession* eachWS = wsIT->second)
+			{
+				if (!eachWS->isNingerSession)
+				{
+					if (Player* eachPlayer = eachWS->GetPlayer())
+					{
+						uint32 eachLevel = eachPlayer->GetLevel();
+						if (onlinePlayerLevelSet.find(eachLevel) == onlinePlayerLevelSet.end())
+						{
+							onlinePlayerLevelSet.insert(eachLevel);
+						}
+					}
+				}
+			}
+		}
+		std::unordered_set<uint32> toOnlineLevelSet;
+		for (std::unordered_set<uint32>::iterator levelIT = onlinePlayerLevelSet.begin(); levelIT != onlinePlayerLevelSet.end(); levelIT++)
+		{
+			uint32 eachLevel = *levelIT;
+			bool levelOnline = false;
+			for (std::unordered_map<std::string, NingerEntity*>::iterator reIT = ningerEntityMap.begin(); reIT != ningerEntityMap.end(); reIT++)
+			{
+				if (NingerEntity* eachRE = reIT->second)
+				{
+					if (eachRE->entityState == NingerEntityState::NingerEntityState_Online)
+					{
+						if (eachRE->target_level == eachLevel)
+						{
+							levelOnline = true;
+							break;
+						}
+					}
+				}
+			}
+			if (!levelOnline)
+			{
+				if (toOnlineLevelSet.find(eachLevel) == toOnlineLevelSet.end())
+				{
+					toOnlineLevelSet.insert(eachLevel);
+				}
+			}
+		}
+		for (std::unordered_set<uint32>::iterator levelIT = toOnlineLevelSet.begin(); levelIT != toOnlineLevelSet.end(); levelIT++)
+		{
+			uint32 eachLevel = *levelIT;
+			LoginNingers(eachLevel);
+		}
+	}
+
+	if (offlineCheckDelay >= 0)
+	{
+		offlineCheckDelay -= pmDiff;
+	}
+	if (offlineCheckDelay < 0)
+	{
+		offlineCheckDelay = sNingerConfig.OfflineCheckDelay;
+		std::unordered_set<uint32> onlinePlayerLevelSet;
+		std::unordered_map<uint32, WorldSession*> allSessions = sWorld.GetAllSessions();
+		for (std::unordered_map<uint32, WorldSession*>::iterator wsIT = allSessions.begin(); wsIT != allSessions.end(); wsIT++)
+		{
+			if (WorldSession* eachWS = wsIT->second)
+			{
+				if (!eachWS->isNingerSession)
+				{
+					if (Player* eachPlayer = eachWS->GetPlayer())
+					{
+						uint32 eachLevel = eachPlayer->GetLevel();
+						if (onlinePlayerLevelSet.find(eachLevel) == onlinePlayerLevelSet.end())
+						{
+							onlinePlayerLevelSet.insert(eachLevel);
+						}
+					}
+				}
+			}
+		}
+		for (uint32 checkLevel = 10; checkLevel <= 60; checkLevel++)
+		{
+			if (onlinePlayerLevelSet.find(checkLevel) == onlinePlayerLevelSet.end())
+			{
+				LogoutNingers(checkLevel);
+			}
+		}
+	}
+
 	for (std::unordered_map<std::string, NingerEntity*>::iterator reIT = ningerEntityMap.begin(); reIT != ningerEntityMap.end(); reIT++)
 	{
 		if (NingerEntity* eachRE = reIT->second)
@@ -233,35 +329,6 @@ bool NingerManager::Deleteningers()
 
 	ningerEntityMap.clear();
 
-	return true;
-}
-
-bool NingerManager::ningersDeleted()
-{
-	for (std::set<uint32>::iterator it = deleteningerAccountSet.begin(); it != deleteningerAccountSet.end(); it++)
-	{
-		QueryResult* accountQR = LoginDatabase.PQuery("SELECT id FROM account where id = '%d'", (*it));
-		if (accountQR)
-		{
-			sLog.outBasic("Account %d is under deleting", (*it));
-			return false;
-		}
-		delete accountQR;
-		QueryResult* characterQR = CharacterDatabase.PQuery("SELECT count(*) FROM characters where account = '%d'", (*it));
-		if (characterQR)
-		{
-			Field* fields = characterQR->Fetch();
-			uint32 count = fields[0].GetUInt32();
-			if (count > 0)
-			{
-				sLog.outBasic("Characters for account %d are under deleting", (*it));
-				return false;
-			}
-		}
-		delete characterQR;
-	}
-
-	sLog.outBasic("ninger accounts are deleted");
 	return true;
 }
 
@@ -331,17 +398,13 @@ uint32 NingerManager::CreateNingerCharacter(uint32 pmAccountID)
 {
 	uint32  targetClass = Classes::CLASS_PALADIN;
 	uint32 classRandom = urand(0, 100);
-	if (classRandom < 40)
+	if (classRandom < 70)
 	{
-		targetClass = Classes::CLASS_WARLOCK;
-	}
-	else if (classRandom < 70)
-	{
-		targetClass = Classes::CLASS_PALADIN;
+		targetClass = Classes::CLASS_ROGUE;
 	}
 	else
 	{
-		targetClass = Classes::CLASS_PRIEST;
+		targetClass = Classes::CLASS_PALADIN;
 	}
 	uint32 raceIndex = 0;
 	uint32 targetRace = 0;
@@ -466,11 +529,101 @@ bool NingerManager::LoginNinger(uint32 pmAccountID, uint32 pmCharacterID)
 	return true;
 }
 
+bool NingerManager::LoginNingers(uint32 pmLevel)
+{
+	if (pmLevel >= 10)
+	{
+		// current count 
+		uint32 currentCount = 0;
+		QueryResult* levelNingerQR = CharacterDatabase.PQuery("SELECT count(*) FROM ninger where target_level = %d", pmLevel);
+		if (levelNingerQR)
+		{
+			Field* fields = levelNingerQR->Fetch();
+			currentCount = fields[0].GetUInt32();
+		}
+		delete levelNingerQR;
+		if (currentCount < sNingerConfig.NingerCountEachLevel)
+		{
+			int toAdd = sNingerConfig.NingerCountEachLevel - currentCount;
+			uint32 checkNumber = 0;
+			while (toAdd > 0)
+			{
+				std::string checkAccountName = "";
+				while (true)
+				{
+					std::ostringstream accountNameStream;
+					accountNameStream << "NINGERL" << pmLevel << "N" << checkNumber;
+					checkAccountName = accountNameStream.str();
+					std::ostringstream querySQLStream;
+					querySQLStream << "SELECT * FROM account where username ='" << checkAccountName << "'";
+					std::string querySQL = querySQLStream.str();
+					QueryResult* accountNameQR = LoginDatabase.Query(querySQL.c_str());
+					if (!accountNameQR)
+					{
+						break;
+					}
+					delete accountNameQR;
+					sLog.outBasic("Account %s exists, try again", checkAccountName.c_str());
+					checkNumber++;
+				}
+				uint32 ningerID = pmLevel * 10000 + checkNumber;
+				std::ostringstream sqlStream;
+				sqlStream << "INSERT INTO ninger (ninger_id, account_name, character_id, target_level) VALUES (" << ningerID << ", '" << checkAccountName << "', 0, " << pmLevel << ")";
+				std::string sql = sqlStream.str();
+				CharacterDatabase.DirectExecute(sql.c_str());
+				std::ostringstream replyStream;
+				replyStream << "ninger " << checkAccountName << " created";
+				sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str());
+				checkNumber++;
+				toAdd--;
+			}
+		}
+		QueryResult* toOnLineQR = CharacterDatabase.PQuery("SELECT ninger_id, account_name, character_id FROM ninger where target_level = %d", pmLevel);
+		if (toOnLineQR)
+		{
+			do
+			{
+				Field* fields = toOnLineQR->Fetch();
+				uint32 ninger_id = fields[0].GetUInt32();
+				std::string account_name = fields[1].GetString();
+				uint32 character_id = fields[2].GetUInt32();
+				if (ningerEntityMap.find(account_name) != ningerEntityMap.end())
+				{
+					if (ningerEntityMap[account_name]->entityState == NingerEntityState::NingerEntityState_OffLine)
+					{
+						ningerEntityMap[account_name]->entityState = NingerEntityState::NingerEntityState_Enter;
+						uint32 onlineWaiting = urand(5, 20);
+						ningerEntityMap[account_name]->checkDelay = onlineWaiting * TimeConstants::IN_MILLISECONDS;
+						std::ostringstream replyStream;
+						replyStream << "ninger " << account_name << " ready to go online";
+						sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str());
+					}
+				}
+				else
+				{
+					NingerEntity* re = new NingerEntity(ninger_id);
+					re->account_id = 0;
+					re->account_name = account_name;
+					re->character_id = character_id;
+					re->target_level = pmLevel;
+					re->entityState = NingerEntityState::NingerEntityState_Enter;
+					re->checkDelay = 5 * TimeConstants::IN_MILLISECONDS;
+					ningerEntityMap[account_name] = re;
+					std::ostringstream replyStream;
+					replyStream << "ninger " << account_name << " entity created, ready to go online";
+					sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str());
+				}
+			} while (toOnLineQR->NextRow());
+		}
+		delete toOnLineQR;
+	}
+	return true;
+}
+
 void NingerManager::LogoutNinger(uint32 pmCharacterID)
 {
 	ObjectGuid guid = ObjectGuid(HighGuid::HIGHGUID_PLAYER, pmCharacterID);
-	Player* checkP = ObjectAccessor::FindPlayer(guid);
-	if (checkP)
+	if (Player* checkP = ObjectAccessor::FindPlayer(guid))
 	{
 		sLog.outBasic("Log out ninger %s", checkP->GetName());
 		std::ostringstream msgStream;
@@ -483,15 +636,14 @@ void NingerManager::LogoutNinger(uint32 pmCharacterID)
 	}
 }
 
-void NingerManager::LogoutNingers(bool pmWait, uint32 pmWaitMin, uint32 pmWaitMax)
+void NingerManager::LogoutNingers()
 {
 	for (std::unordered_map<std::string, NingerEntity*>::iterator reIT = ningerEntityMap.begin(); reIT != ningerEntityMap.end(); reIT++)
 	{
 		if (NingerEntity* eachRE = reIT->second)
 		{
 			ObjectGuid guid = ObjectGuid(HighGuid::HIGHGUID_PLAYER, eachRE->character_id);
-			Player* checkP = ObjectAccessor::FindPlayer(guid);
-			if (checkP)
+			if (Player* checkP = ObjectAccessor::FindPlayer(guid))
 			{
 				if (Map* ningerMap = checkP->GetMap())
 				{
@@ -501,12 +653,35 @@ void NingerManager::LogoutNingers(bool pmWait, uint32 pmWaitMin, uint32 pmWaitMa
 					}
 				}
 				eachRE->entityState = NingerEntityState::NingerEntityState_DoLogoff;
-				uint32 offlineWaiting = 5;
-				if (pmWait)
-				{
-					offlineWaiting = urand(pmWaitMin, pmWaitMax);
-				}
+				uint32 offlineWaiting = urand(1 * TimeConstants::IN_MILLISECONDS, 2 * TimeConstants::IN_MILLISECONDS);
 				eachRE->checkDelay = offlineWaiting * TimeConstants::IN_MILLISECONDS;
+			}
+		}
+	}
+}
+
+void NingerManager::LogoutNingers(uint32 pmLevel)
+{
+	for (std::unordered_map<std::string, NingerEntity*>::iterator reIT = ningerEntityMap.begin(); reIT != ningerEntityMap.end(); reIT++)
+	{
+		if (NingerEntity* eachRE = reIT->second)
+		{
+			if (eachRE->target_level == pmLevel)
+			{
+				ObjectGuid guid = ObjectGuid(HighGuid::HIGHGUID_PLAYER, eachRE->character_id);
+				if (Player* checkP = ObjectAccessor::FindPlayer(guid))
+				{
+					if (Map* ningerMap = checkP->GetMap())
+					{
+						if (ningerMap->Instanceable())
+						{
+							checkP->TeleportTo(checkP->GetHomeBindMap(), checkP->GetHomeBindX(), checkP->GetHomeBindY(), checkP->GetHomeBindZ(), 0);
+						}
+					}
+					eachRE->entityState = NingerEntityState::NingerEntityState_DoLogoff;
+					uint32 offlineWaiting = urand(1 * TimeConstants::IN_MILLISECONDS, 2 * TimeConstants::IN_MILLISECONDS);
+					eachRE->checkDelay = offlineWaiting * TimeConstants::IN_MILLISECONDS;
+				}
 			}
 		}
 	}
@@ -834,6 +1009,7 @@ void NingerManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 				bool paladinBlessing_kings = false;
 				bool paladinBlessing_might = false;
 				bool paladinBlessing_wisdom = false;
+				bool paladinBlessing_salvation = false;
 
 				bool paladinSeal_Justice = false;
 
@@ -884,6 +1060,11 @@ void NingerManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 									memberAwareness->groupRole = GroupRole::GroupRole_Healer;
 									break;
 								}
+								case Classes::CLASS_PALADIN:
+								{
+									memberAwareness->groupRole = GroupRole::GroupRole_Healer;
+									break;
+								}
 								case Classes::CLASS_PRIEST:
 								{
 									memberAwareness->groupRole = GroupRole::GroupRole_Healer;
@@ -916,10 +1097,10 @@ void NingerManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 												sp->sealType = PaladinSealType::PaladinSealType_Righteousness;
 											}
 										}
-										if (!paladinBlessing_kings)
+										if (!paladinBlessing_salvation)
 										{
-											sp->blessingType = PaladinBlessingType::PaladinBlessingType_Kings;
-											paladinBlessing_kings = true;
+											sp->blessingType = PaladinBlessingType::PaladinBlessingType_Salvation;
+											paladinBlessing_salvation = true;
 										}
 										else if (!paladinBlessing_might)
 										{
@@ -931,10 +1112,15 @@ void NingerManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 											sp->blessingType = PaladinBlessingType::PaladinBlessingType_Wisdom;
 											paladinBlessing_wisdom = true;
 										}
-										else
+										else if (!paladinBlessing_kings)
 										{
 											sp->blessingType = PaladinBlessingType::PaladinBlessingType_Kings;
 											paladinBlessing_kings = true;
+										}
+										else
+										{
+											sp->blessingType = PaladinBlessingType::PaladinBlessingType_Might;
+											paladinBlessing_might = true;
 										}
 
 										if (!paladinAura_devotion)
@@ -1148,7 +1334,7 @@ void NingerManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 			{
 				std::ostringstream replyStream;
 				replyStream << "All ningers are going offline";
-				LogoutNingers(true, 2, 10);
+				LogoutNingers();
 				sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
 			}
 			else if (ningerAction == "online")
@@ -1162,7 +1348,7 @@ void NingerManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 				}
 				else
 				{
-					uint32 ningerCount = 10;
+					uint32 ningerCount = sNingerConfig.NingerCountEachLevel;
 					if (commandVector.size() > 2)
 					{
 						ningerCount = atoi(commandVector.at(2).c_str());
@@ -1170,90 +1356,22 @@ void NingerManager::HandlePlayerSay(Player* pmPlayer, std::string pmContent)
 					std::ostringstream replyTitleStream;
 					replyTitleStream << "ninger count to go online : " << ningerCount;
 					sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyTitleStream.str().c_str(), pmPlayer);
-					// current count 
-					uint32 currentCount = 0;
-					QueryResult* levelNingerQR = CharacterDatabase.PQuery("SELECT count(*) FROM ninger where target_level = %d", playerLevel);
-					if (levelNingerQR)
-					{
-						Field* fields = levelNingerQR->Fetch();
-						currentCount = fields[0].GetUInt32();
-					}
-					delete levelNingerQR;
-					if (currentCount < ningerCount)
-					{
-						int toAdd = ningerCount - currentCount;
-						uint32 checkNumber = 0;
-						while (toAdd > 0)
-						{
-							std::string checkAccountName = "";
-							while (true)
-							{
-								std::ostringstream accountNameStream;
-								accountNameStream << "NINGERL" << playerLevel << "N" << checkNumber;
-								checkAccountName = accountNameStream.str();
-								std::ostringstream querySQLStream;
-								querySQLStream << "SELECT * FROM account where username ='" << checkAccountName << "'";
-								std::string querySQL = querySQLStream.str();
-								QueryResult* accountNameQR = LoginDatabase.Query(querySQL.c_str());
-								if (!accountNameQR)
-								{
-									break;
-								}
-								delete accountNameQR;
-								sLog.outBasic("Account %s exists, try again", checkAccountName.c_str());
-								checkNumber++;
-							}
-							uint32 ningerID = playerLevel * 10000 + checkNumber;
-							std::ostringstream sqlStream;
-							sqlStream << "INSERT INTO ninger (ninger_id, account_name, character_id, target_level) VALUES (" << ningerID << ", '" << checkAccountName << "', 0, " << playerLevel << ")";
-							std::string sql = sqlStream.str();
-							CharacterDatabase.DirectExecute(sql.c_str());
-							std::ostringstream replyStream;
-							replyStream << "ninger " << checkAccountName << " created";
-							sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-							checkNumber++;
-							toAdd--;
-						}
-					}
-					QueryResult* toOnLineQR = CharacterDatabase.PQuery("SELECT ninger_id, account_name, character_id FROM ninger where target_level = %d", playerLevel);
-					if (toOnLineQR)
-					{
-						do
-						{
-							Field* fields = toOnLineQR->Fetch();
-							uint32 ninger_id = fields[0].GetUInt32();
-							std::string account_name = fields[1].GetString();
-							uint32 character_id = fields[2].GetUInt32();
-							if (ningerEntityMap.find(account_name) != ningerEntityMap.end())
-							{
-								if (ningerEntityMap[account_name]->entityState == NingerEntityState::NingerEntityState_OffLine)
-								{
-									ningerEntityMap[account_name]->entityState = NingerEntityState::NingerEntityState_Enter;
-									uint32 onlineWaiting = urand(5, 20);
-									ningerEntityMap[account_name]->checkDelay = onlineWaiting * TimeConstants::IN_MILLISECONDS;
-									std::ostringstream replyStream;
-									replyStream << "ninger " << account_name << " ready to go online";
-									sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-								}
-							}
-							else
-							{
-								NingerEntity* re = new NingerEntity(ninger_id);
-								re->account_id = 0;
-								re->account_name = account_name;
-								re->character_id = character_id;
-								re->target_level = playerLevel;
-								re->entityState = NingerEntityState::NingerEntityState_Enter;
-								re->checkDelay = 5 * TimeConstants::IN_MILLISECONDS;
-								ningerEntityMap[account_name] = re;
-								std::ostringstream replyStream;
-								replyStream << "ninger " << account_name << " entity created, ready to go online";
-								sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
-							}
-						} while (toOnLineQR->NextRow());
-					}
-					delete toOnLineQR;
+					LoginNingers(playerLevel);
 				}
+			}
+		}
+	}
+	else if (commandName == "marketer")
+	{
+		if (commandVector.size() > 1)
+		{
+			std::string marketerAction = commandVector.at(1);
+			if (marketerAction == "clean")
+			{
+				std::ostringstream replyStream;
+				sMarketerManager->Clean();
+				replyStream << "Marketer cleaned";
+				sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, replyStream.str().c_str(), pmPlayer);
 			}
 		}
 	}
@@ -1765,18 +1883,18 @@ void NingerManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Playe
 								if (pmReceiver->GetDistance(pmSender) < VISIBILITY_DISTANCE_TINY)
 								{
 									receiverAI->teleportAssembleDelay = urand(10 * TimeConstants::IN_MILLISECONDS, 15 * TimeConstants::IN_MILLISECONDS);
-									replyStream << "We are close, I will teleport to you in " << receiverAI->teleportAssembleDelay << " ms";
+									replyStream << "We are close, I will teleport to you in " << receiverAI->teleportAssembleDelay / 1000 << " seconds";
 								}
 								else
 								{
 									receiverAI->teleportAssembleDelay = urand(30 * TimeConstants::IN_MILLISECONDS, 1 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS);
-									replyStream << "I will teleport to you in " << receiverAI->teleportAssembleDelay << " ms";
+									replyStream << "I will teleport to you in " << receiverAI->teleportAssembleDelay / 1000 << " seconds";
 								}
 							}
 							else
 							{
 								receiverAI->teleportAssembleDelay = urand(1 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS, 2 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS);
-								replyStream << "I will teleport to you and revive in " << receiverAI->teleportAssembleDelay << " ms";
+								replyStream << "I will teleport to you and revive in " << receiverAI->teleportAssembleDelay / 1000 << " seconds";
 							}
 						}
 						WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, pmReceiver);
@@ -2255,6 +2373,10 @@ void NingerManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Playe
 									{
 										sp->blessingType = PaladinBlessingType::PaladinBlessingType_Wisdom;
 									}
+									else if (blessingTypeName == "salvation")
+									{
+										sp->blessingType = PaladinBlessingType::PaladinBlessingType_Salvation;
+									}
 									else
 									{
 										replyStream << "Unknown type";
@@ -2275,6 +2397,11 @@ void NingerManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Playe
 								case PaladinBlessingType::PaladinBlessingType_Wisdom:
 								{
 									replyStream << "wisdom";
+									break;
+								}
+								case PaladinBlessingType::PaladinBlessingType_Salvation:
+								{
+									replyStream << "salvation";
 									break;
 								}
 								default:
@@ -2580,31 +2707,37 @@ void NingerManager::HandleChatCommand(Player* pmSender, std::string pmCMD, Playe
 							{
 								if (member->GetClass() == Classes::CLASS_DRUID || member->GetClass() == Classes::CLASS_PRIEST || member->GetClass() == Classes::CLASS_PALADIN || member->GetClass() == Classes::CLASS_SHAMAN)
 								{
-									float manaRate = member->GetPower(Powers::POWER_MANA) * 100 / member->GetMaxPower(Powers::POWER_MANA);
-									if (manaRate > 40)
+									if (WorldSession* memberSession = member->GetSession())
 									{
-										for (std::unordered_set<ObjectGuid>::iterator dIT = deadOGSet.begin(); dIT != deadOGSet.end(); dIT++)
+										if (memberSession->isNingerSession)
 										{
-											if (ObjectGuid ogEachDead = *dIT)
+											float manaRate = member->GetPower(Powers::POWER_MANA) * 100 / member->GetMaxPower(Powers::POWER_MANA);
+											if (manaRate > 40)
 											{
-												if (revivingOGSet.find(ogEachDead) == revivingOGSet.end())
+												for (std::unordered_set<ObjectGuid>::iterator dIT = deadOGSet.begin(); dIT != deadOGSet.end(); dIT++)
 												{
-													if (Player* eachDead = ObjectAccessor::FindPlayer(ogEachDead))
+													if (ObjectGuid ogEachDead = *dIT)
 													{
-														if (member->GetDistance(eachDead) < RANGE_HEAL_DISTANCE)
+														if (revivingOGSet.find(ogEachDead) == revivingOGSet.end())
 														{
-															if (Awareness_Base* memberAwareness = member->awarenessMap[member->activeAwarenessIndex])
+															if (Player* eachDead = ObjectAccessor::FindPlayer(ogEachDead))
 															{
-																if (Script_Base* sb = memberAwareness->sb)
+																if (member->GetDistance(eachDead) < RANGE_HEAL_DISTANCE)
 																{
-																	sb->ogReviveTarget = eachDead->GetObjectGuid();
-																	HandleChatCommand(pmSender, pmCMD, member);
-																	revivingOGSet.insert(eachDead->GetObjectGuid());
-																	std::ostringstream replyStream;
-																	replyStream << "Try to revive ";
-																	replyStream << eachDead->GetName();
-																	WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
-																	break;
+																	if (Awareness_Base* memberAwareness = member->awarenessMap[member->activeAwarenessIndex])
+																	{
+																		if (Script_Base* sb = memberAwareness->sb)
+																		{
+																			sb->ogReviveTarget = eachDead->GetObjectGuid();
+																			HandleChatCommand(pmSender, pmCMD, member);
+																			revivingOGSet.insert(eachDead->GetObjectGuid());
+																			std::ostringstream replyStream;
+																			replyStream << "Try to revive ";
+																			replyStream << eachDead->GetName();
+																			WhisperTo(pmSender, replyStream.str(), Language::LANG_UNIVERSAL, member);
+																			break;
+																		}
+																	}
 																}
 															}
 														}
@@ -2651,7 +2784,7 @@ void NingerManager::LearnPlayerTalents(Player* pmTargetPlayer)
 		}
 		else if (pmTargetPlayer->GetClass() == Classes::CLASS_ROGUE)
 		{
-			specialty = 0;
+			specialty = 1;
 		}
 		else if (pmTargetPlayer->GetClass() == Classes::CLASS_WARRIOR)
 		{
@@ -2671,7 +2804,7 @@ void NingerManager::LearnPlayerTalents(Player* pmTargetPlayer)
 		}
 		else if (pmTargetPlayer->GetClass() == Classes::CLASS_PALADIN)
 		{
-			specialty = 2;
+			specialty = 0;
 		}
 		else if (pmTargetPlayer->GetClass() == Classes::CLASS_DRUID)
 		{
@@ -2773,13 +2906,12 @@ bool NingerManager::InitializeCharacter(Player* pmTargetPlayer, uint32 pmTargetL
 		isNew = true;
 		pmTargetPlayer->GiveLevel(pmTargetLevel);
 		pmTargetPlayer->LearnDefaultSpells();
-		
+
 		switch (pmTargetPlayer->GetClass())
 		{
 		case Classes::CLASS_WARRIOR:
 		{
 			pmTargetPlayer->LearnSpell(201, true);
-			//pmTargetPlayer->SetSkill(43, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // sword 
 			break;
 		}
 		case Classes::CLASS_HUNTER:
@@ -2787,54 +2919,45 @@ bool NingerManager::InitializeCharacter(Player* pmTargetPlayer, uint32 pmTargetL
 			pmTargetPlayer->LearnSpell(5011, true);
 			pmTargetPlayer->LearnSpell(266, true);
 			pmTargetPlayer->LearnSpell(264, true);
-			//pmTargetPlayer->SetSkill(45, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // bow 
-			//pmTargetPlayer->SetSkill(46, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // gun 
-			//pmTargetPlayer->SetSkill(226, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // crossbow 
 			break;
 		}
 		case Classes::CLASS_SHAMAN:
 		{
 			pmTargetPlayer->LearnSpell(198, true);
 			pmTargetPlayer->LearnSpell(227, true);
-			//pmTargetPlayer->SetSkill(136, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // stave 
 			break;
 		}
 		case Classes::CLASS_PALADIN:
 		{
 			pmTargetPlayer->LearnSpell(198, true);
 			pmTargetPlayer->LearnSpell(199, true);
-			pmTargetPlayer->LearnSpell(55, true);
 			pmTargetPlayer->LearnSpell(201, true);
-			//pmTargetPlayer->SetSkill(160, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // mace 2 
+			pmTargetPlayer->LearnSpell(202, true);
 			break;
 		}
 		case Classes::CLASS_WARLOCK:
 		{
 			pmTargetPlayer->LearnSpell(227, true);
-			//pmTargetPlayer->SetSkill(136, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // stave 
 			break;
 		}
 		case Classes::CLASS_PRIEST:
 		{
 			pmTargetPlayer->LearnSpell(227, true);
-			//pmTargetPlayer->SetSkill(136, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // stave 
 			break;
 		}
 		case Classes::CLASS_ROGUE:
 		{
+			pmTargetPlayer->LearnSpell(201, true);
 			break;
 		}
 		case Classes::CLASS_MAGE:
 		{
 			pmTargetPlayer->LearnSpell(227, true);
-			//pmTargetPlayer->SetSkill(136, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // stave 
 			break;
 		}
 		case Classes::CLASS_DRUID:
 		{
 			pmTargetPlayer->LearnSpell(227, true);
-			//pmTargetPlayer->SetSkill(136, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // stave 
-			//pmTargetPlayer->SetSkill(160, pmTargetPlayer->GetLevel() * 5, pmTargetPlayer->GetLevel() * 5); // mace 2 
 			break;
 		}
 		default:
@@ -2974,307 +3097,284 @@ bool NingerManager::InitializeCharacter(Player* pmTargetPlayer, uint32 pmTargetL
 
 void NingerManager::InitializeEquipments(Player* pmTargetPlayer, bool pmReset)
 {
-	if (Awareness_Base* ningerAI = pmTargetPlayer->awarenessMap[pmTargetPlayer->activeAwarenessIndex])
+	if (pmReset)
 	{
-		if (Script_Base* sb = ningerAI->sb)
+		for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
 		{
-			if (pmReset)
+			if (Item* inventoryItem = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
 			{
-				for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
+				pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, slot, true);
+			}
+		}
+		for (uint32 checkEquipSlot = EquipmentSlots::EQUIPMENT_SLOT_HEAD; checkEquipSlot < EquipmentSlots::EQUIPMENT_SLOT_TABARD; checkEquipSlot++)
+		{
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
+			{
+				pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
+			}
+		}
+	}
+	uint32 minQuality = ItemQualities::ITEM_QUALITY_UNCOMMON;
+	if (pmTargetPlayer->GetLevel() < 20)
+	{
+		minQuality = ItemQualities::ITEM_QUALITY_POOR;
+	}
+	for (uint32 checkEquipSlot = EquipmentSlots::EQUIPMENT_SLOT_HEAD; checkEquipSlot < EquipmentSlots::EQUIPMENT_SLOT_TABARD; checkEquipSlot++)
+	{
+		if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_HEAD || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_SHOULDERS || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_CHEST || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_WAIST || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_LEGS || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_FEET || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_WRISTS || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_HANDS)
+		{
+			if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_HEAD)
+			{
+				if (pmTargetPlayer->GetLevel() < 30)
 				{
-					if (Item* inventoryItem = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
-					{
-						pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, slot, true);
-					}
+					continue;
 				}
-				for (uint32 checkEquipSlot = EquipmentSlots::EQUIPMENT_SLOT_HEAD; checkEquipSlot < EquipmentSlots::EQUIPMENT_SLOT_TABARD; checkEquipSlot++)
+			}
+			else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_SHOULDERS)
+			{
+				if (pmTargetPlayer->GetLevel() < 20)
 				{
-					if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
+					continue;
+				}
+			}
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
+			{
+				if (const ItemPrototype* checkIT = currentEquip->GetProto())
+				{
+					if (checkIT->Quality >= minQuality)
+					{
+						continue;
+					}
+					else
 					{
 						pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
 					}
 				}
 			}
-			uint32 minQuality = ItemQualities::ITEM_QUALITY_UNCOMMON;
+			std::unordered_set<uint32> usableItemClass;
+			std::unordered_set<uint32> usableItemSubClass;
+			usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
+			usableItemSubClass.insert(GetUsableArmorSubClass(pmTargetPlayer));
+			TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
+		}
+		else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_MAINHAND)
+		{
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
+			{
+				if (const ItemPrototype* checkIT = currentEquip->GetProto())
+				{
+					if (checkIT->Quality >= minQuality)
+					{
+						continue;
+					}
+					else
+					{
+						pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
+					}
+				}
+			}
+			int weaponSubClass_mh = -1;
+			int weaponSubClass_oh = -1;
+			int weaponSubClass_r = -1;
+			switch (pmTargetPlayer->GetClass())
+			{
+			case Classes::CLASS_WARRIOR:
+			{
+				weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_SWORD;
+				weaponSubClass_oh = ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_SHIELD;
+				break;
+			}
+			case Classes::CLASS_PALADIN:
+			{
+				weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MACE;
+				uint32 weaponType = urand(0, 100);
+				if (weaponType < 50)
+				{
+					weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_SWORD;
+				}
+				weaponSubClass_oh = ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_SHIELD;
+				break;
+			}
+			case Classes::CLASS_HUNTER:
+			{
+				weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_AXE2;
+				uint32 rType = urand(0, 2);
+				if (rType == 0)
+				{
+					weaponSubClass_r = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_BOW;
+				}
+				else if (rType == 1)
+				{
+					weaponSubClass_r = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_CROSSBOW;
+				}
+				else
+				{
+					weaponSubClass_r = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_GUN;
+				}
+				break;
+			}
+			case Classes::CLASS_ROGUE:
+			{
+				weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_SWORD;
+				weaponSubClass_oh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_SWORD;
+				break;
+			}
+			case Classes::CLASS_PRIEST:
+			{
+				weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_STAFF;
+				break;
+			}
+			case Classes::CLASS_SHAMAN:
+			{
+				weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MACE;
+				weaponSubClass_oh = ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_SHIELD;
+				break;
+			}
+			case Classes::CLASS_MAGE:
+			{
+				weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_STAFF;
+				break;
+			}
+			case Classes::CLASS_WARLOCK:
+			{
+				weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_STAFF;
+				break;
+			}
+			case Classes::CLASS_DRUID:
+			{
+				weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_STAFF;
+				break;
+			}
+			default:
+			{
+				continue;
+			}
+			}
+			if (weaponSubClass_mh >= 0)
+			{
+				std::unordered_set<uint32> usableItemClass;
+				std::unordered_set<uint32> usableItemSubClass;
+				usableItemClass.insert(ItemClass::ITEM_CLASS_WEAPON);
+				usableItemSubClass.insert(weaponSubClass_mh);
+				TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
+			}
+			if (weaponSubClass_oh >= 0)
+			{
+				std::unordered_set<uint32> usableItemClass;
+				std::unordered_set<uint32> usableItemSubClass;
+				usableItemClass.insert(ItemClass::ITEM_CLASS_WEAPON);
+				usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
+				usableItemSubClass.insert(weaponSubClass_oh);
+				TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, EquipmentSlots::EQUIPMENT_SLOT_OFFHAND);
+			}
+			if (weaponSubClass_r >= 0)
+			{
+				std::unordered_set<uint32> usableItemClass;
+				std::unordered_set<uint32> usableItemSubClass;
+				usableItemClass.insert(ItemClass::ITEM_CLASS_WEAPON);
+				usableItemSubClass.insert(weaponSubClass_r);
+				TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, EquipmentSlots::EQUIPMENT_SLOT_RANGED);
+			}
+		}
+		else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_BACK)
+		{
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
+			{
+				if (const ItemPrototype* checkIT = currentEquip->GetProto())
+				{
+					if (checkIT->Quality >= minQuality)
+					{
+						continue;
+					}
+					else
+					{
+						pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
+					}
+				}
+			}
+			std::unordered_set<uint32> usableItemClass;
+			std::unordered_set<uint32> usableItemSubClass;
+			usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
+			usableItemSubClass.insert(ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_CLOTH);
+			TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
+		}
+		else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_FINGER1)
+		{
 			if (pmTargetPlayer->GetLevel() < 20)
 			{
-				minQuality = ItemQualities::ITEM_QUALITY_POOR;
+				continue;
 			}
-			for (uint32 checkEquipSlot = EquipmentSlots::EQUIPMENT_SLOT_HEAD; checkEquipSlot < EquipmentSlots::EQUIPMENT_SLOT_TABARD; checkEquipSlot++)
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
 			{
-				if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_HEAD || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_SHOULDERS || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_CHEST || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_WAIST || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_LEGS || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_FEET || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_WRISTS || checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_HANDS)
+				if (const ItemPrototype* checkIT = currentEquip->GetProto())
 				{
-					if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_HEAD)
-					{
-						if (pmTargetPlayer->GetLevel() < 30)
-						{
-							continue;
-						}
-					}
-					else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_SHOULDERS)
-					{
-						if (pmTargetPlayer->GetLevel() < 20)
-						{
-							continue;
-						}
-					}
-					if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
-					{
-						if (const ItemPrototype* checkIT = currentEquip->GetProto())
-						{
-							if (checkIT->Quality >= minQuality)
-							{
-								continue;
-							}
-							else
-							{
-								pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
-							}
-						}
-					}
-					std::unordered_set<uint32> usableItemClass;
-					std::unordered_set<uint32> usableItemSubClass;
-					usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
-					usableItemSubClass.insert(GetUsableArmorSubClass(pmTargetPlayer));
-					TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
-				}
-				else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_MAINHAND)
-				{
-					if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
-					{
-						if (const ItemPrototype* checkIT = currentEquip->GetProto())
-						{
-							if (checkIT->Quality >= minQuality)
-							{
-								continue;
-							}
-							else
-							{
-								pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
-							}
-						}
-					}
-					int weaponSubClass_mh = -1;
-					int weaponSubClass_oh = -1;
-					int weaponSubClass_r = -1;
-					switch (pmTargetPlayer->GetClass())
-					{
-					case Classes::CLASS_WARRIOR:
-					{
-						weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_SWORD;
-						weaponSubClass_oh = ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_SHIELD;
-						break;
-					}
-					case Classes::CLASS_PALADIN:
-					{
-						bool dps = true;
-						if (sb->maxTalentTab == 0)
-						{
-							dps = false;
-						}
-						if (dps)
-						{
-							weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_SWORD2;
-							uint32 weaponType = urand(0, 100);
-							if (weaponType < 50)
-							{
-								weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MACE2;
-							}
-						}
-						else
-						{
-							weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MACE;
-							uint32 weaponType = urand(0, 100);
-							if (weaponType < 50)
-							{
-								weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_SWORD;
-							}
-							weaponSubClass_oh = ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_SHIELD;
-						}
-						break;
-					}
-					case Classes::CLASS_HUNTER:
-					{
-						weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_AXE2;
-						uint32 rType = urand(0, 2);
-						if (rType == 0)
-						{
-							weaponSubClass_r = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_BOW;
-						}
-						else if (rType == 1)
-						{
-							weaponSubClass_r = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_CROSSBOW;
-						}
-						else
-						{
-							weaponSubClass_r = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_GUN;
-						}
-						break;
-					}
-					case Classes::CLASS_ROGUE:
-					{
-						weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_DAGGER;
-						weaponSubClass_oh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_DAGGER;
-						break;
-					}
-					case Classes::CLASS_PRIEST:
-					{
-						weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_STAFF;
-						break;
-					}
-					case Classes::CLASS_SHAMAN:
-					{
-						weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MACE;
-						weaponSubClass_oh = ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_SHIELD;
-						break;
-					}
-					case Classes::CLASS_MAGE:
-					{
-						weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_STAFF;
-						break;
-					}
-					case Classes::CLASS_WARLOCK:
-					{
-						weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_STAFF;
-						break;
-					}
-					case Classes::CLASS_DRUID:
-					{
-						weaponSubClass_mh = ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_STAFF;
-						break;
-					}
-					default:
+					if (checkIT->Quality >= minQuality)
 					{
 						continue;
 					}
-					}
-					if (weaponSubClass_mh >= 0)
+					else
 					{
-						std::unordered_set<uint32> usableItemClass;
-						std::unordered_set<uint32> usableItemSubClass;
-						usableItemClass.insert(ItemClass::ITEM_CLASS_WEAPON);
-						usableItemSubClass.insert(weaponSubClass_mh);
-						TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
+						pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
 					}
-					if (weaponSubClass_oh >= 0)
-					{
-						std::unordered_set<uint32> usableItemClass;
-						std::unordered_set<uint32> usableItemSubClass;
-						usableItemClass.insert(ItemClass::ITEM_CLASS_WEAPON);
-						usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
-						usableItemSubClass.insert(weaponSubClass_oh);
-						TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, EquipmentSlots::EQUIPMENT_SLOT_OFFHAND);
-					}
-					if (weaponSubClass_r >= 0)
-					{
-						std::unordered_set<uint32> usableItemClass;
-						std::unordered_set<uint32> usableItemSubClass;
-						usableItemClass.insert(ItemClass::ITEM_CLASS_WEAPON);
-						usableItemSubClass.insert(weaponSubClass_r);
-						TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, EquipmentSlots::EQUIPMENT_SLOT_RANGED);
-					}
-				}
-				else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_BACK)
-				{
-					if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
-					{
-						if (const ItemPrototype* checkIT = currentEquip->GetProto())
-						{
-							if (checkIT->Quality >= minQuality)
-							{
-								continue;
-							}
-							else
-							{
-								pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
-							}
-						}
-					}
-					std::unordered_set<uint32> usableItemClass;
-					std::unordered_set<uint32> usableItemSubClass;
-					usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
-					usableItemSubClass.insert(ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_CLOTH);
-					TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
-				}
-				else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_FINGER1)
-				{
-					if (pmTargetPlayer->GetLevel() < 20)
-					{
-						continue;
-					}
-					if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
-					{
-						if (const ItemPrototype* checkIT = currentEquip->GetProto())
-						{
-							if (checkIT->Quality >= minQuality)
-							{
-								continue;
-							}
-							else
-							{
-								pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
-							}
-						}
-					}
-					std::unordered_set<uint32> usableItemClass;
-					std::unordered_set<uint32> usableItemSubClass;
-					usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
-					usableItemSubClass.insert(ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_MISC);
-					TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
-				}
-				else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_FINGER2)
-				{
-					if (pmTargetPlayer->GetLevel() < 20)
-					{
-						continue;
-					}
-					if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
-					{
-						if (const ItemPrototype* checkIT = currentEquip->GetProto())
-						{
-							if (checkIT->Quality >= minQuality)
-							{
-								continue;
-							}
-							else
-							{
-								pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
-							}
-						}
-					}
-					std::unordered_set<uint32> usableItemClass;
-					std::unordered_set<uint32> usableItemSubClass;
-					usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
-					usableItemSubClass.insert(ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_MISC);
-					TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
-				}
-				else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_NECK)
-				{
-					if (pmTargetPlayer->GetLevel() < 30)
-					{
-						continue;
-					}
-					if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
-					{
-						if (const ItemPrototype* checkIT = currentEquip->GetProto())
-						{
-							if (checkIT->Quality >= minQuality)
-							{
-								continue;
-							}
-							else
-							{
-								pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
-							}
-						}
-					}
-					std::unordered_set<uint32> usableItemClass;
-					std::unordered_set<uint32> usableItemSubClass;
-					usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
-					usableItemSubClass.insert(ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_MISC);
-					TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
 				}
 			}
+			std::unordered_set<uint32> usableItemClass;
+			std::unordered_set<uint32> usableItemSubClass;
+			usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
+			usableItemSubClass.insert(ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_MISC);
+			TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
+		}
+		else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_FINGER2)
+		{
+			if (pmTargetPlayer->GetLevel() < 20)
+			{
+				continue;
+			}
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
+			{
+				if (const ItemPrototype* checkIT = currentEquip->GetProto())
+				{
+					if (checkIT->Quality >= minQuality)
+					{
+						continue;
+					}
+					else
+					{
+						pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
+					}
+				}
+			}
+			std::unordered_set<uint32> usableItemClass;
+			std::unordered_set<uint32> usableItemSubClass;
+			usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
+			usableItemSubClass.insert(ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_MISC);
+			TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
+		}
+		else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_NECK)
+		{
+			if (pmTargetPlayer->GetLevel() < 30)
+			{
+				continue;
+			}
+			if (Item* currentEquip = pmTargetPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, checkEquipSlot))
+			{
+				if (const ItemPrototype* checkIT = currentEquip->GetProto())
+				{
+					if (checkIT->Quality >= minQuality)
+					{
+						continue;
+					}
+					else
+					{
+						pmTargetPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, checkEquipSlot, true);
+					}
+				}
+			}
+			std::unordered_set<uint32> usableItemClass;
+			std::unordered_set<uint32> usableItemSubClass;
+			usableItemClass.insert(ItemClass::ITEM_CLASS_ARMOR);
+			usableItemSubClass.insert(ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_MISC);
+			TryEquip(pmTargetPlayer, usableItemClass, usableItemSubClass, checkEquipSlot);
 		}
 	}
 }
@@ -3532,8 +3632,61 @@ void NingerManager::RandomTeleport(Player* pmTargetPlayer)
 	{
 		ningerAI->Reset();
 	}
-	pmTargetPlayer->TeleportTo(pmTargetPlayer->GetHomeBindMap(), pmTargetPlayer->GetHomeBindX(), pmTargetPlayer->GetHomeBindY(), pmTargetPlayer->GetHomeBindZ(), 0.0f);
-	sLog.outBasic("Teleport ninger %s (level %d)", pmTargetPlayer->GetName(), pmTargetPlayer->GetLevel());
+	std::unordered_map<uint32, ObjectGuid> sameLevelPlayerOGMap;
+	std::unordered_map<uint32, WorldSession*> allSessions = sWorld.GetAllSessions();
+	for (std::unordered_map<uint32, WorldSession*>::iterator wsIT = allSessions.begin(); wsIT != allSessions.end(); wsIT++)
+	{
+		if (WorldSession* eachWS = wsIT->second)
+		{
+			if (!eachWS->isNingerSession)
+			{
+				if (Player* eachPlayer = eachWS->GetPlayer())
+				{
+					if (eachPlayer->GetLevel() == pmTargetPlayer->GetLevel())
+					{
+						if (pmTargetPlayer->IsValidAttackTarget(eachPlayer))
+						{
+							if (!eachPlayer->IsBeingTeleported())
+							{
+								if (Map* eachMap = eachPlayer->GetMap())
+								{
+									if (!eachMap->Instanceable())
+									{
+										if (const auto* areaEntry = AreaEntry::GetById(eachPlayer->GetAreaId()))
+										{
+											if (areaEntry->Team == TeamId::TEAM_NEUTRAL)
+											{
+												sameLevelPlayerOGMap[sameLevelPlayerOGMap.size()] = eachPlayer->GetObjectGuid();
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	Player* destPlayer = NULL;
+	if (sameLevelPlayerOGMap.size() > 0)
+	{
+		uint32 destPlayerIndex = urand(0, sameLevelPlayerOGMap.size() - 1);
+		destPlayer = ObjectAccessor::FindPlayer(sameLevelPlayerOGMap[destPlayerIndex]);
+	}
+	else
+	{
+		destPlayer = pmTargetPlayer;
+	}
+	if (destPlayer)
+	{
+		float angle = frand(0, 2 * M_PI_F);
+		float distance = frand(100.0f, 400.0f);
+		float destX = 0.0f, destY = 0.0f, destZ = 0.0f;
+		destPlayer->GetNearPoint(destPlayer, destX, destY, destZ, destPlayer->GetObjectBoundingRadius(), distance, angle);
+		pmTargetPlayer->TeleportTo(destPlayer->GetMapId(), destX, destY, destZ, 0.0f);
+		sLog.outBasic("Teleport ninger %s (level %d)", pmTargetPlayer->GetName(), pmTargetPlayer->GetLevel());
+	}
 }
 
 bool NingerManager::TankThreatOK(Player* pmTankPlayer, Unit* pmVictim)
@@ -3615,6 +3768,57 @@ bool NingerManager::HasAura(Unit* pmTarget, std::string pmSpellName, Unit* pmCas
 	}
 
 	return false;
+}
+
+bool NingerManager::MissingAura(Unit* pmTarget, std::string pmSpellName, Unit* pmCaster)
+{
+	if (!pmTarget)
+	{
+		return false;
+	}
+	bool castOnSelf = false;
+	if (pmTarget->GetObjectGuid() == pmCaster->GetObjectGuid())
+	{
+		castOnSelf = true;
+	}
+	std::set<uint32> spellIDSet = spellNameEntryMap[pmSpellName];
+	for (std::set<uint32>::iterator it = spellIDSet.begin(); it != spellIDSet.end(); it++)
+	{
+		uint32 spellID = *it;
+		if (const SpellEntry* pS = sSpellMgr.GetSpellEntry(spellID))
+		{
+			if (pmTarget->IsImmuneToSpell(pS, castOnSelf))
+			{
+				return false;
+			}
+		}
+		if (pmCaster)
+		{
+			std::multimap< uint32, SpellAuraHolder*> sahMap = pmTarget->GetSpellAuraHolderMap();
+			for (std::multimap< uint32, SpellAuraHolder*>::iterator sahIT = sahMap.begin(); sahIT != sahMap.end(); sahIT++)
+			{
+				if (spellID == sahIT->first)
+				{
+					if (SpellAuraHolder* eachSAH = sahIT->second)
+					{
+						if (eachSAH->GetCasterGuid() == pmCaster->GetObjectGuid())
+						{
+							return false;
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			if (pmTarget->HasAura(spellID))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 uint32 NingerManager::GetAuraDuration(Unit* pmTarget, std::string pmSpellName, Unit* pmCaster)

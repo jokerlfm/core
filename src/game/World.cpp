@@ -84,7 +84,10 @@
 #include <chrono>
 
 // lfm ninger
-#include "NingerConfig.h"
+#include "NingerManager.h"
+
+// lfm marketer
+#include "MarketerManager.h"
 
 INSTANTIATE_SINGLETON_1(World);
 
@@ -1788,6 +1791,12 @@ void World::SetInitialWorldSettings()
     {
         sNingerManager->InitializeManager();
     }
+
+    // lfm marketer
+    if (sMarketerConfig.StartMarketerSystem())
+    {
+        sMarketerManager->InitializeManager();
+    }
 }
 
 void World::DetectDBCLang()
@@ -1991,6 +2000,9 @@ void World::Update(uint32 diff)
 
     // lfm ninger update
     sNingerManager->UpdateNingerManager(diff);
+
+    // lfm marketer update 
+    sMarketerManager->UpdateMarketer(diff);
 }
 
 /// Send a packet to all players (except self if mentioned)
@@ -2464,8 +2476,15 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     m_ShutdownMask = options;
     m_ExitCode = exitcode;
 
+    // lfm shutdown time will not be less than 5 seconds 
+    uint32 shutdownTimeSeconds = time;
+    if (shutdownTimeSeconds < 5)
+    {
+        shutdownTimeSeconds = 5;
+    }
+
     ///- If the shutdown time is 0, set m_stopEvent (except if shutdown is 'idle' with remaining sessions)
-    if (time == 0)
+    if (shutdownTimeSeconds == 0)
     {
         if (!(options & SHUTDOWN_MASK_IDLE) || GetActiveAndQueuedSessionCount() == 0)
             m_stopEvent = true;                             // exist code already set
@@ -2475,7 +2494,7 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     ///- Else set the shutdown timer and warn users
     else
     {
-        m_ShutdownTimer = time;
+        m_ShutdownTimer = shutdownTimeSeconds;
         ShutdownMsg(true);
     }
 }

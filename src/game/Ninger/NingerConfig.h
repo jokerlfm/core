@@ -45,6 +45,9 @@ public:
 	uint32 Enable;
 	std::string AccountNamePrefix;
 	uint32 DPSDelay;
+	uint32 OnlineCheckDelay;
+	uint32 OfflineCheckDelay;
+	uint32 NingerCountEachLevel;
 
 	std::vector<std::string> SplitString(std::string srcStr, std::string delimStr, bool repeatedCharIgnored);
 	std::string TrimString(std::string srcStr);

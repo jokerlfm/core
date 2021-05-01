@@ -21,7 +21,7 @@ void NingerEntity::Update(uint32 pmDiff)
 	checkDelay -= pmDiff;
 	if (checkDelay < 0)
 	{
-		checkDelay = 5 * TimeConstants::IN_MILLISECONDS;
+		checkDelay = urand(2 * TimeConstants::IN_MILLISECONDS, 10 * TimeConstants::IN_MILLISECONDS);
 		switch (entityState)
 		{
 		case NingerEntityState::NingerEntityState_None:
@@ -102,7 +102,7 @@ void NingerEntity::Update(uint32 pmDiff)
 			uint32  targetClass = Classes::CLASS_PALADIN;
 			uint32 raceIndex = urand(0, sNingerManager->availableRaces[targetClass].size() - 1);
 			uint32 targetRace = sNingerManager->availableRaces[targetClass][raceIndex];
-			character_id = sNingerManager->CreateNingerCharacter(account_id, targetClass, targetRace);
+			character_id = sNingerManager->CreateNingerCharacter(account_id);
 			if (character_id > 0)
 			{
 				std::ostringstream sqlStream;
@@ -120,13 +120,12 @@ void NingerEntity::Update(uint32 pmDiff)
 		case NingerEntityState::NingerEntityState_DoLogin:
 		{
 			sNingerManager->LoginNinger(account_id, character_id);
-			checkDelay = 10 * TimeConstants::IN_MILLISECONDS;
+			checkDelay = urand(5 * TimeConstants::IN_MILLISECONDS, 10 * TimeConstants::IN_MILLISECONDS);
 			entityState = NingerEntityState::NingerEntityState_CheckLogin;
 			break;
 		}
 		case NingerEntityState::NingerEntityState_CheckLogin:
 		{
-			checkDelay = 5 * TimeConstants::IN_MILLISECONDS;
 			Player* me = sNingerManager->CheckLogin(account_id, character_id);
 			if (me)
 			{
@@ -142,7 +141,6 @@ void NingerEntity::Update(uint32 pmDiff)
 		}
 		case NingerEntityState::NingerEntityState_Initialize:
 		{
-			checkDelay = 5 * TimeConstants::IN_MILLISECONDS;
 			ObjectGuid guid = ObjectGuid(HighGuid::HIGHGUID_PLAYER, character_id);
 			if (Player* me = ObjectAccessor::FindPlayer(guid))
 			{

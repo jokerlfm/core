@@ -9587,9 +9587,12 @@ void Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
     // Compute random angle
     float angle = GetAngle(attacker);
     float sizeFactor = GetObjectBoundingRadius() + attacker->GetObjectBoundingRadius();
-    if (sizeFactor < 0.1f)
-        sizeFactor = DEFAULT_COMBAT_REACH;
-
+    // lfm creature min melee range
+    //if (sizeFactor < 0.1f)
+    if (sizeFactor < 1.0f)
+    {
+        sizeFactor = 1.0f;
+    }
     uint32 attacker_number = GetAttackers().size();
     if (attacker_number > 0)
         --attacker_number;
@@ -9615,6 +9618,11 @@ void Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
         // On ne bouge pas, on est deja a portee.
         attacker->GetPosition(x, y, z);
         return;
+    }
+    // lfm attack dist 
+    if (dist < 1.0f)
+    {
+        dist = 1.0f;
     }
     float normalizedVectZ = (attacker->GetPositionZ() - initialPosZ) / attackerTargetDistance;
     float normalizedVectXY = sqrt(1 - normalizedVectZ * normalizedVectZ);

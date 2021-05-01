@@ -29,6 +29,7 @@ public:
     virtual bool Cure();
     virtual bool Petting();
     virtual bool Follow();
+    virtual bool Wander();
     virtual bool Stay(std::string pmTargetGroupRole);
     virtual bool Hold(std::string pmTargetGroupRole);
     virtual bool Chasing();
@@ -49,7 +50,9 @@ public:
     int drinkDelay;
 	
     int combatTime;    
-    int teleportAssembleDelay;    
+    int teleportAssembleDelay;
+    int randomTeleportDelay;
+    int resurrectDelay;
     int dpsDelay;
     int engageDelay;
     int pullDelay;

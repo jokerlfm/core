@@ -439,6 +439,11 @@ set (game_SRCS
 	Ninger/Awareness/Scripts/Script_Warlock.cpp
 	Ninger/Awareness/Scripts/Script_Warrior.h
 	Ninger/Awareness/Scripts/Script_Warrior.cpp
+	
+	Marketer/MarketerConfig.h
+	Marketer/MarketerConfig.cpp
+	Marketer/MarketerManager.h
+	Marketer/MarketerManager.cpp
 )
 
 if((${CMAKE_VERSION} VERSION_LESS "3.16") OR USE_PCH_OLD)
@@ -519,6 +524,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/Ninger
   ${CMAKE_CURRENT_SOURCE_DIR}/Ninger/Awareness
   ${CMAKE_CURRENT_SOURCE_DIR}/Ninger/Awareness/Scripts
+  ${CMAKE_CURRENT_SOURCE_DIR}/Marketer
   ${CMAKE_SOURCE_DIR}/src/scripts
   ${CMAKE_SOURCE_DIR}/src/scripts/PrecompiledHeaders
   ${CMAKE_SOURCE_DIR}/dep/include/g3dlite
@@ -589,6 +595,10 @@ source_group("Ninger/Awareness"
 
 source_group("Ninger/Awareness/Scripts"
   REGULAR_EXPRESSION Scripts
+)
+
+source_group("Marketer"
+  REGULAR_EXPRESSION Marketer
 )
 
 add_library(game STATIC

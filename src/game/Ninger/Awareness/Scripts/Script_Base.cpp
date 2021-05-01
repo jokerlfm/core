@@ -109,8 +109,15 @@ bool NingerMovement::Chase(Unit* pmChaseTarget, float pmChaseDistanceMin, float 
 	{
 		float distanceInRange = frand(chaseDistanceMin, chaseDistanceMax);
 		float nearX = 0, nearY = 0, nearZ = 0;
-		chaseTarget->GetNearPoint(me, nearX, nearY, nearZ, chaseTarget->GetObjectBoundingRadius(), distanceInRange, chaseTarget->GetAngle(me));
-		me->GetMotionMaster()->MovePoint(0, nearX, nearY, nearZ, MoveOptions::MOVE_PATHFINDING, 0.0f, me->GetAngle(chaseTarget));
+		float dynamicAngle = M_PI / 16;
+		if (distanceInRange < INTERACTION_DISTANCE)
+		{
+			dynamicAngle = M_PI / 8;
+		}
+		float chaseAngle = chaseTarget->GetAngle(me);
+		chaseAngle = frand(chaseAngle - dynamicAngle, chaseAngle + dynamicAngle);
+		chaseTarget->GetNearPoint(me, nearX, nearY, nearZ, chaseTarget->GetObjectBoundingRadius(), distanceInRange, chaseAngle);
+		MovePoint(nearX, nearY, nearZ);
 	}
 	return true;
 }
@@ -177,6 +184,7 @@ void NingerMovement::MovePoint(float pmX, float pmY, float pmZ)
 		{
 			me->SetStandState(UnitStandStateType::UNIT_STAND_STATE_STAND);
 		}
+		me->SetWalk(false);
 		me->GetMotionMaster()->MovePoint(0, pmX, pmY, pmZ, MoveOptions::MOVE_PATHFINDING);
 	}
 }
@@ -295,8 +303,15 @@ void NingerMovement::Update(uint32 pmDiff)
 			}
 			float distanceInRange = frand(chaseDistanceMin, chaseDistanceMax);
 			float nearX = 0, nearY = 0, nearZ = 0;
-			chaseTarget->GetNearPoint(me, nearX, nearY, nearZ, chaseTarget->GetObjectBoundingRadius(), distanceInRange, chaseTarget->GetAngle(me));
-			me->GetMotionMaster()->MovePoint(0, nearX, nearY, nearZ, MoveOptions::MOVE_PATHFINDING, 0.0f, me->GetAngle(chaseTarget));
+			float dynamicAngle = M_PI / 16;
+			if (distanceInRange < INTERACTION_DISTANCE)
+			{
+				dynamicAngle = M_PI / 8;
+			}
+			float chaseAngle = chaseTarget->GetAngle(me);
+			chaseAngle = frand(chaseAngle - dynamicAngle, chaseAngle + dynamicAngle);			
+			chaseTarget->GetNearPoint(me, nearX, nearY, nearZ, chaseTarget->GetObjectBoundingRadius(), distanceInRange, chaseAngle);
+			MovePoint(nearX, nearY, nearZ);
 		}
 		break;
 	}
@@ -315,6 +330,7 @@ Script_Base::Script_Base(Player* pmMe)
 	spellLevelMap.clear();
 	maxTalentTab = 0;
 	buffDelay = 0;
+	healDelay = 0;
 	cureDelay = 0;
 	potionDelay = 0;
 	chaseDistanceMin = MELEE_MIN_DISTANCE;
@@ -362,8 +378,9 @@ void Script_Base::Reset()
 		rm->ResetMovement();
 	}
 	ClearTarget();
-	buffDelay = 1000;
-	cureDelay = 1000;
+	buffDelay = 0;
+	healDelay = 0;
+	cureDelay = 0;
 	potionDelay = 0;
 }
 
@@ -377,6 +394,10 @@ void Script_Base::Update(uint32 pmDiff)
 	if (buffDelay >= 0)
 	{
 		buffDelay -= pmDiff;
+	}
+	if (healDelay >= 0)
+	{
+		healDelay -= pmDiff;
 	}
 	if (cureDelay >= 0)
 	{
@@ -400,7 +421,7 @@ bool Script_Base::Tank(Unit* pmTarget, bool pmChase, bool pmAOE)
 	return false;
 }
 
-bool Script_Base::Heal(Unit* pmTarget, bool pmMaxHealing)
+bool Script_Base::Heal(Unit* pmTarget)
 {
 	return false;
 }

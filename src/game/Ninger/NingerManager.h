@@ -24,19 +24,19 @@
 #endif
 
 #ifndef FOLLOW_NEAR_DISTANCE
-# define FOLLOW_NEAR_DISTANCE 8.0f
+# define FOLLOW_NEAR_DISTANCE 5.0f
 #endif
 
 #ifndef FOLLOW_NORMAL_DISTANCE
-# define FOLLOW_NORMAL_DISTANCE 18.0f
+# define FOLLOW_NORMAL_DISTANCE 9.0f
 #endif
 
 #ifndef FOLLOW_FAR_DISTANCE
-# define FOLLOW_FAR_DISTANCE 28.0f
+# define FOLLOW_FAR_DISTANCE 25.0f
 #endif
 
 #ifndef FOLLOW_MAX_DISTANCE
-# define FOLLOW_MAX_DISTANCE 48.0f
+# define FOLLOW_MAX_DISTANCE 38.0f
 #endif
 
 #ifndef MELEE_MIN_DISTANCE
@@ -70,6 +70,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "NingerConfig.h"
+
 class NingerManager
 {
 	NingerManager();
@@ -81,7 +83,7 @@ public:
 	void InitializeManager();
 	void UpdateNingerManager(uint32 pmDiff);
 	bool Deleteningers();
-	bool ningersDeleted();
+
 	uint32 CheckNingerAccount(std::string pmAccountName);
 	bool CreateNingerAccount(std::string pmAccountName);
 	uint32 CheckAccountCharacter(uint32 pmAccountID);
@@ -92,8 +94,10 @@ public:
 	std::unordered_set<uint32> GetUsableEquipSlot(const ItemPrototype* pmIT);
 	Player* CheckLogin(uint32 pmAccountID, uint32 pmCharacterID);
 	bool LoginNinger(uint32 pmAccountID, uint32 pmCharacterID);
+	bool LoginNingers(uint32 pmLevel);
 	void LogoutNinger(uint32 pmCharacterID);
-	void LogoutNingers(bool pmWait = false, uint32 pmWaitMin = 5, uint32 pmWaitMax = 10);
+	void LogoutNingers();
+	void LogoutNingers(uint32 pmLevel);
 	void HandlePlayerSay(Player* pmPlayer, std::string pmContent);
 	void HandleChatCommand(Player* pmSender, std::string pmCMD, Player* pmReceiver = NULL);
 	bool StringEndWith(const std::string& str, const std::string& tail);
@@ -114,6 +118,7 @@ public:
 
 	bool TankThreatOK(Player* pmTankPlayer, Unit* pmVictim);
 	bool HasAura(Unit* pmTarget, std::string pmSpellName, Unit* pmCaster = NULL);
+	bool MissingAura(Unit* pmTarget, std::string pmSpellName, Unit* pmCaster = NULL);
 	uint32 GetAuraDuration(Unit* pmTarget, std::string pmSpellName, Unit* pmCaster = NULL);
 	uint32 GetAuraStack(Unit* pmTarget, std::string pmSpellName, Unit* pmCaster = NULL);
 
@@ -134,6 +139,9 @@ public:
 
 	std::unordered_map<uint32, uint32> tamableBeastEntryMap;
 	std::unordered_map<std::string, std::set<uint32>> spellNameEntryMap;
+
+	int onlineCheckDelay;
+	int offlineCheckDelay;
 };
 
 #define sNingerManager NingerManager::instance()

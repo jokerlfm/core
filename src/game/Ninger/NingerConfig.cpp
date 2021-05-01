@@ -105,6 +105,10 @@ bool NingerConfig::StartNingerSystem()
 	Enable = GetIntDefault("Enable", 0);
 	AccountNamePrefix = GetStringDefault("AccountNamePrefix", "NINGER");
 	DPSDelay = GetIntDefault("DPSDelay", 2000);	
+	OnlineCheckDelay = GetIntDefault("OnlineCheckDelay", 60000);
+	OfflineCheckDelay = GetIntDefault("OfflineCheckDelay", 3600000);
+	NingerCountEachLevel = GetIntDefault("NingerCountEachLevel", 20);
+
 	if (Enable == 0)
 	{
 		sLog.outBasic("Ninger system is disabled.");
