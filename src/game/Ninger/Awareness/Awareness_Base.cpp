@@ -208,14 +208,6 @@ void Awareness_Base::Update(uint32 pmDiff)
 	{
 		return;
 	}
-	else if (!me->IsAlive())
-	{
-		return;
-	}
-	if (me->IsNonMeleeSpellCasted(false))
-	{
-		return;
-	}
 	if (WorldSession* mySesson = me->GetSession())
 	{
 		if (mySesson->isNingerSession)
@@ -632,12 +624,12 @@ void Awareness_Base::Update(uint32 pmDiff)
 					if (randomTeleportDelay >= 0)
 					{
 						randomTeleportDelay -= pmDiff;
-						if (randomTeleportDelay < 0)
-						{
-							randomTeleportDelay = urand(10 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS, 20 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS);
-							sNingerManager->RandomTeleport(me);
-							return;
-						}
+					}
+					if (randomTeleportDelay < 0)
+					{
+						randomTeleportDelay = urand(10 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS, 20 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS);
+						sNingerManager->RandomTeleport(me);
+						return;
 					}
 					if (eatDelay > 0)
 					{

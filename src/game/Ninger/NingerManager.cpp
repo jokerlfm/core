@@ -654,7 +654,7 @@ void NingerManager::LogoutNingers()
 				}
 				eachRE->entityState = NingerEntityState::NingerEntityState_DoLogoff;
 				uint32 offlineWaiting = urand(1 * TimeConstants::IN_MILLISECONDS, 2 * TimeConstants::IN_MILLISECONDS);
-				eachRE->checkDelay = offlineWaiting * TimeConstants::IN_MILLISECONDS;
+				eachRE->checkDelay = offlineWaiting;
 			}
 		}
 	}
@@ -3628,10 +3628,6 @@ void NingerManager::RandomTeleport(Player* pmTargetPlayer)
 	pmTargetPlayer->ClearInCombat();
 	pmTargetPlayer->StopMoving();
 	pmTargetPlayer->GetMotionMaster()->Clear();
-	if (Awareness_Base* ningerAI = pmTargetPlayer->awarenessMap[pmTargetPlayer->activeAwarenessIndex])
-	{
-		ningerAI->Reset();
-	}
 	std::unordered_map<uint32, ObjectGuid> sameLevelPlayerOGMap;
 	std::unordered_map<uint32, WorldSession*> allSessions = sWorld.GetAllSessions();
 	for (std::unordered_map<uint32, WorldSession*>::iterator wsIT = allSessions.begin(); wsIT != allSessions.end(); wsIT++)
