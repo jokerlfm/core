@@ -870,7 +870,7 @@ class Player final: public Unit
         // 0 dps, 1 tank, 2 healer
         uint32 groupRole;        
         // lfm auto fish
-        bool fishing;        
+        int fishingDelay;
 
         void CleanupsBeforeDelete() override;
 

@@ -16,7 +16,7 @@
 #endif
 
 #ifndef MIN_DISTANCE_GAP
-# define MIN_DISTANCE_GAP 0.2f
+# define MIN_DISTANCE_GAP 0.5f
 #endif
 
 #ifndef FOLLOW_MIN_DISTANCE
@@ -44,7 +44,7 @@
 #endif
 
 #ifndef MELEE_MAX_DISTANCE
-# define MELEE_MAX_DISTANCE 2.0f
+# define MELEE_MAX_DISTANCE 3.0f
 #endif
 
 #ifndef RANGE_MIN_DISTANCE

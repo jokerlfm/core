@@ -1719,7 +1719,7 @@ void GameObject::Use(Unit* user)
             }
 
             // lfm auto fish
-            player->fishing = true;
+            player->fishingDelay = urand(500, 1000);
             player->AutoStoreLoot(loot);
             //player->SendLootRelease(player->GetObjectGuid());
             player->FinishSpell(CURRENT_CHANNELED_SPELL);

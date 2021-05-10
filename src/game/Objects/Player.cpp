@@ -602,7 +602,7 @@ Player::Player(WorldSession* session) : Unit(),
     awarenessMap.clear();
     activeAwarenessIndex = 0;
     // lfm auto fish
-    fishing = false;
+    fishingDelay = 0;
 }
 
 Player::~Player()
@@ -1488,10 +1488,14 @@ void Player::Update(uint32 update_diff, uint32 p_time)
     }
 
     // lfm auto fish
-    if (fishing)
+    if (fishingDelay>0)
     {
-        CastSpell(this, 7620, true);
-        fishing = false;
+        fishingDelay -= p_time;
+        if (fishingDelay <= 0)
+        {
+            CastSpell(this, 7620, true);
+            fishingDelay = 0;
+        }
     }
 
     // lfm ninger updates 
