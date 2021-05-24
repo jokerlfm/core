@@ -90,6 +90,7 @@ class PlayerBotMgr
         bool ForceAccountConnection(WorldSession* sess);
         bool IsPermanentBot(uint32 playerGuid);
         bool IsChatBot(uint32 playerGuid);
+        PlayerBotEntry* GetBotWithName(std::string name);
 
         uint32 GenBotAccountId() { return ++m_maxAccountId; }
         PlayerBotStats& GetStats(){ return m_stats; }
