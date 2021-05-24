@@ -89,6 +89,7 @@ void PartyBotAI::CloneFromPlayer(Player const* pPlayer)
 
 void PartyBotAI::LearnPremadeSpecForClass()
 {
+    bool foundspec = false;
     // First attempt to find a spec. Must be for correct class, level and role.
     for (const auto& itr : sObjectMgr.GetPlayerPremadeSpecTemplates())
     {
@@ -100,11 +101,11 @@ void PartyBotAI::LearnPremadeSpecForClass()
                 m_role = itr.second.role;
 
             sObjectMgr.ApplyPremadeSpecTemplateToPlayer(itr.first, me);
-            return;
+            foundspec = true;                      
         }
     }
 
-    if (m_role != ROLE_INVALID)
+    if (m_role != ROLE_INVALID) && !foundspec)
     {
         // Second attempt, but this time we will accept any role, just so
         // that we have level appropriate spells.
@@ -114,12 +115,12 @@ void PartyBotAI::LearnPremadeSpecForClass()
                 (!m_level || (itr.second.level == m_level)))
             {
                 sObjectMgr.ApplyPremadeSpecTemplateToPlayer(itr.first, me);
-                return;
+                foundspec = true;
             }
         }
     }
     
-    if (m_level > 1)
+    if (m_level > 1 && !foundspec))
     {
         // Third attempt. Check for lower level specs. Better than nothing.
         for (const auto& itr : sObjectMgr.GetPlayerPremadeSpecTemplates())
@@ -137,6 +138,44 @@ void PartyBotAI::LearnPremadeSpecForClass()
         me->InitTalentForLevel();
         me->SetUInt32Value(PLAYER_XP, 0);
     }
+
+    if (m_role == ROLE_INVALID)
+        AutoAssignRole();
+
+    std::vector<PlayerPremadeGearTemplate const*> vGear;
+    for (const auto& itr : sObjectMgr.GetPlayerPremadeGearTemplates())
+    {
+        if (itr.second.requiredClass == me->GetClass() &&
+            itr.second.level == m_level)
+            vGear.push_back(&itr.second);
+    }
+    // Use lower level gear template if there are no templates for the current level.
+    if (vGear.empty())
+    {
+        for (const auto& itr : sObjectMgr.GetPlayerPremadeGearTemplates())
+        {
+            if (itr.second.requiredClass == me->GetClass() &&
+                itr.second.level < m_level)
+                vGear.push_back(&itr.second);
+        }
+    }
+    if (!vGear.empty())
+    {
+        uint32 gearId = 0;
+        // Try to find a role appropriate gear template.
+        for (const auto itr : vGear)
+        {
+            if (itr->role == m_role)
+            {
+                gearId = itr->entry;
+                break;
+            }
+        }
+        // There is no gear template for this role, pick randomly.
+        if (!gearId)
+            gearId = SelectRandomContainerElement(vGear)->entry;
+        sObjectMgr.ApplyPremadeGearTemplateToPlayer(gearId, me);
+    }    
 }
 
 Player* PartyBotAI::GetPartyLeader() const
@@ -304,6 +343,15 @@ Unit* PartyBotAI::GetMarkedTarget(RaidTargetIcon mark) const
 
 Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
 {
+    if (!m_spamGuid.IsEmpty())
+    {
+        if (Unit* pTarget = me->GetMap()->GetUnit(m_spamGuid))
+        {
+            if (IsValidHostileTarget(pTarget))
+                return pTarget;
+        }
+    }
+ 
     // Stick to marked target in combat.
     if (me->IsInCombat() || pLeader->GetVictim())
     {
@@ -448,6 +496,27 @@ void PartyBotAI::AddToPlayerGroup()
     }
 
     group->AddMember(me->GetObjectGuid(), me->GetName());
+}
+
+void PartyBotAI::OnWhisper(Player* pWho, std::string text)
+{
+    uint32 spellId = atoi(text.c_str());
+    if (spellId)
+    {
+        m_spamSpell = sSpellMgr.GetSpellEntry(spellId);
+        m_spamGuid = pWho->GetTargetGuid();
+
+        std::string chatResponse = "I will now spam spell ";
+        chatResponse += std::to_string(spellId) + " on ";
+        chatResponse += m_spamGuid.GetString();
+        me->MonsterWhisper(chatResponse.c_str(), pWho);
+    }
+    else
+    {
+        m_spamSpell = nullptr;
+        m_spamGuid = ObjectGuid();
+    }
+
 }
 
 void PartyBotAI::SendFakePacket(uint16 opcode)
@@ -758,6 +827,17 @@ void PartyBotAI::UpdateOutOfCombatAI()
 
 void PartyBotAI::UpdateInCombatAI()
 {
+    if (m_spamSpell)
+    {
+        if (Unit* pTarget = !m_spamGuid.IsEmpty() ? me->GetMap()->GetUnit(m_spamGuid) : me->GetVictim())
+        {
+            if (CanTryToCastSpell(pTarget, m_spamSpell))
+                if (DoCastSpell(pTarget, m_spamSpell) == SPELL_CAST_OK)
+                    return;
+        }
+    }
+    
+    
     if (m_role == ROLE_TANK)
     {
         Unit* pVictim = me->GetVictim();
