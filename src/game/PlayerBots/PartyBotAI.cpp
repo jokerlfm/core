@@ -101,7 +101,7 @@ void PartyBotAI::LearnPremadeSpecForClass()
                 m_role = itr.second.role;
 
             sObjectMgr.ApplyPremadeSpecTemplateToPlayer(itr.first, me);
-            foundspec = true;                      
+            foundspec = true;
         }
     }
 
