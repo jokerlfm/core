@@ -105,7 +105,7 @@ void PartyBotAI::LearnPremadeSpecForClass()
         }
     }
 
-    if (m_role != ROLE_INVALID) && !foundspec)
+    if (m_role != ROLE_INVALID && !foundspec)
     {
         // Second attempt, but this time we will accept any role, just so
         // that we have level appropriate spells.
@@ -120,7 +120,7 @@ void PartyBotAI::LearnPremadeSpecForClass()
         }
     }
     
-    if (m_level > 1 && !foundspec))
+    if (m_level > 1 && !foundspec)
     {
         // Third attempt. Check for lower level specs. Better than nothing.
         for (const auto& itr : sObjectMgr.GetPlayerPremadeSpecTemplates())
