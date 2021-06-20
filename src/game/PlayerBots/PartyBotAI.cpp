@@ -83,7 +83,10 @@ void PartyBotAI::CloneFromPlayer(Player const* pPlayer)
     for (int i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_END; ++i)
     {
         if (Item* pItem = pPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+        {
+            me->SatisfyItemRequirements(pItem->GetProto());
             me->StoreNewItemInBestSlots(pItem->GetEntry(), 1);
+        }   
     }
 }
 
@@ -145,11 +148,23 @@ Player* PartyBotAI::GetPartyLeader() const
     if (!pGroup)
         return nullptr;
 
-    ObjectGuid leaderGuid = pGroup->GetLeaderGuid();
-    if (leaderGuid == me->GetObjectGuid() && !me->InBattleGround())
-        return nullptr;
+    if (Player* originalLeader = ObjectAccessor::FindPlayerNotInWorld(m_leaderGuid))
+    {
+        if (me->InBattleGround() == originalLeader->InBattleGround())
+        {
+            // In case the original spawner is not in the same group as the bots anymore.
+            if (pGroup != originalLeader->GetGroup())
+                return nullptr;
 
-    return ObjectAccessor::FindPlayerNotInWorld(m_leaderGuid);
+            // In case the current leader is the bot itself and it's not inside a Battleground.
+            ObjectGuid currentLeaderGuid = pGroup->GetLeaderGuid();
+            if (currentLeaderGuid == me->GetObjectGuid() && !me->InBattleGround())
+                return nullptr;
+        }
+
+        return originalLeader;
+    }
+    return nullptr;
 }
 
 bool PartyBotAI::RunAwayFromTarget(Unit* pTarget)
@@ -566,6 +581,11 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         return;
     }
 
+    if (me->HasUnitState(UNIT_STAT_FEIGN_DEATH) && me->HasAuraType(SPELL_AURA_FEIGN_DEATH) &&
+       !me->IsInCombat() && (!me->GetPet() || !me->GetPet()->IsInCombat()) &&
+       !me->SelectRandomUnfriendlyTarget(nullptr, 20.0f, false, true))
+        me->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
+
     if (me->HasUnitState(UNIT_STAT_CAN_NOT_REACT_OR_LOST_CONTROL))
         return;
 
@@ -648,8 +668,9 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     }
 
     Unit* pVictim = me->GetVictim();
+    bool const isOnTransport = me->GetTransport() != nullptr;
 
-    if (m_role != ROLE_HEALER)
+    if (m_role != ROLE_HEALER && !isOnTransport)
     {
         if (!pVictim || pVictim->IsDead() || pVictim->HasBreakableByDamageCrowdControlAura())
         {
@@ -695,7 +716,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
             if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
                 me->GetMotionMaster()->MoveFollow(pLeader, urand(PB_MIN_FOLLOW_DIST, PB_MAX_FOLLOW_DIST), frand(PB_MIN_FOLLOW_ANGLE, PB_MAX_FOLLOW_ANGLE));
         }
-        else
+        else if (!isOnTransport)
         {
             if (!me->HasUnitState(UNIT_STAT_MELEE_ATTACKING) &&
                (m_role == ROLE_MELEE_DPS || m_role == ROLE_TANK) &&
@@ -708,7 +729,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         }
     }
 
-    if (me->IsInCombat())
+    if (me->IsInCombat() && !isOnTransport)
         UpdateInCombatAI();
 }
 
@@ -1195,11 +1216,6 @@ void PartyBotAI::UpdateInCombatAI_Shaman()
 
 void PartyBotAI::UpdateOutOfCombatAI_Hunter()
 {
-    if (me->HasUnitState(UNIT_STAT_DIED) &&
-        m_spells.hunter.pFeignDeath &&
-        me->HasAura(m_spells.hunter.pFeignDeath->Id))
-        me->RemoveAurasDueToSpellByCancel(m_spells.hunter.pFeignDeath->Id);
-
     if (m_spells.hunter.pAspectOfTheHawk &&
         CanTryToCastSpell(me, m_spells.hunter.pAspectOfTheHawk))
     {
@@ -1233,12 +1249,6 @@ void PartyBotAI::UpdateOutOfCombatAI_Hunter()
 
 void PartyBotAI::UpdateInCombatAI_Hunter()
 {
-    if (me->HasUnitState(UNIT_STAT_DIED) &&
-        m_spells.hunter.pFeignDeath &&
-        me->GetAttackers().empty() &&
-        me->HasAura(m_spells.hunter.pFeignDeath->Id))
-        me->RemoveAurasDueToSpellByCancel(m_spells.hunter.pFeignDeath->Id);
-
     if (Unit* pVictim = me->GetVictim())
     {
         if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
@@ -1788,7 +1798,7 @@ void PartyBotAI::UpdateInCombatAI_Priest()
         }
 
         // Direct heal more seriously injured.
-        if (Unit* pTarget = SelectHealTarget(70.0f, 80.0f))
+        if (Unit* pTarget = SelectHealTarget(60.0f, 80.0f))
             if (HealInjuredTargetDirect(pTarget))
                 return;
 

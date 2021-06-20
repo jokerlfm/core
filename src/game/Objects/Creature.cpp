@@ -910,7 +910,7 @@ void Creature::RegenerateMana()
     uint32 addvalue = 0;
 
     // Combat and any controlled creature
-    if (IsInCombat() || GetCharmerOrOwnerGuid())
+    if (IsInCombat() || GetCharmerOrOwnerGuid().IsPlayer())
     {
         if (!IsUnderLastManaUseEffect())
             addvalue = m_manaRegen;
@@ -935,7 +935,7 @@ void Creature::RegenerateHealth()
     uint32 addvalue = 0;
 
     // Not only pet, but any controlled creature
-    if (GetCharmerOrOwnerGuid())
+    if (GetCharmerOrOwnerGuid().IsPlayer())
     {
         if (IsPolymorphed())
         {
@@ -2201,7 +2201,7 @@ bool Creature::CanAssistTo(Unit const* u, Unit const* enemy, bool checkfaction /
 
 bool Creature::CanInitiateAttack()
 {
-    if (HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_PENDING_STUNNED | UNIT_STAT_DIED))
+    if (HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_PENDING_STUNNED | UNIT_STAT_FEIGN_DEATH))
         return false;
 
     if (HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE))
@@ -3562,7 +3562,7 @@ bool Creature::_IsTargetAcceptable(Unit const* target) const
     // if the target cannot be attacked, the target is not acceptable
     if (IsFriendlyTo(target)
             || !target->IsTargetable(true, IsCharmerOrOwnerPlayerOrPlayerItself())
-            || target->HasUnitState(UNIT_STAT_DIED))
+            || target->HasUnitState(UNIT_STAT_FEIGN_DEATH))
         return false;
 
     Unit* myVictim = GetAttackerForHelper();

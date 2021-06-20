@@ -625,7 +625,7 @@ bool Map::ScriptCommand_CreateItem(ScriptInfo const& script, WorldObject* source
         return ShouldAbortScript(script);
     }
 
-    if (Item* pItem = pReceiver->StoreNewItemInInventorySlot(script.createItem.itemEntry, script.createItem.amount))
+    if (Item* pItem = pReceiver->StoreNewItemInInventorySlot(script.createItem.itemId, script.createItem.amount))
         pReceiver->SendNewItem(pItem, script.createItem.amount, true, false);
 
     return false;
@@ -1264,7 +1264,7 @@ bool Map::ScriptCommand_RemoveItem(ScriptInfo const& script, WorldObject* source
         return ShouldAbortScript(script);
     }
 
-    pPlayer->DestroyItemCount(script.createItem.itemEntry, script.createItem.amount, true);
+    pPlayer->DestroyItemCount(script.createItem.itemId, script.createItem.amount, true);
 
     return false;
 }
@@ -2264,7 +2264,7 @@ bool Map::ScriptCommand_LoadGameObject(ScriptInfo const& script, WorldObject* so
     if (GetGameObject(ObjectGuid(HIGHGUID_GAMEOBJECT, pGameObjectData->id, script.loadGo.goGuid)))
         return ShouldAbortScript(script); // already spawned
 
-    GameObject* pGameobject = new GameObject;
+    GameObject* pGameobject = GameObject::CreateGameObject(pGameObjectData->id);
     if (!pGameobject->LoadFromDB(script.loadGo.goGuid, this))
         delete pGameobject;
     else
